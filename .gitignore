@@ -1,0 +1,34 @@
+# Python and build output
+__pycache__/
+*.py[cod]
+.venv/
+.conda/
+build/
+dist/
+/.rollback/
+*.egg-info/
+.pytest_cache/
+
+# Private materials already present in this checkout
+/test/
+/saves/
+/VASSAL-*/
+
+# Private runtime records and credentials
+/AGENTS.md
+/private/
+/runtime/
+/.chat-ui-test-*/
+.env
+.env.*
+!.env.example
+*.asl-session.json
+*.aslgame
+*.vsav
+*.vlog
+*.log
+*.key
+
+# Editors and operating system files
+.DS_Store
+Thumbs.db

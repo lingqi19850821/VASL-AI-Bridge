@@ -1,0 +1,193 @@
+name: Build Windows Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional existing release tag (v<project version>), pointing to this run's commit"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and verify Windows x64 Setup
+    runs-on: windows-2022
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUTF8: "1"
+      ASL_AI_RELEASE_TAG: ${{ inputs.release_tag }}
+
+    steps:
+      - name: Check out the event's exact source commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12 x64
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Validate the source commit and optional release tag
+        id: source
+        env:
+          REPOSITORY_IS_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceRevision = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $sourceRevision -ne $env:GITHUB_SHA) {
+            throw 'The checkout does not match the event source commit.'
+          }
+          $version = (python -c "import pathlib,tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])").Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw 'The project version must have three numeric components.'
+          }
+          if ($env:ASL_AI_RELEASE_TAG) {
+            if ($env:ASL_AI_RELEASE_TAG -cne "v$version") {
+              throw 'The release tag must match the project version exactly.'
+            }
+            git show-ref --verify --quiet "refs/tags/$env:ASL_AI_RELEASE_TAG"
+            if ($LASTEXITCODE -ne 0) { throw 'The requested release tag does not exist.' }
+            $tagRevision = (git rev-parse "refs/tags/$env:ASL_AI_RELEASE_TAG^{commit}").Trim()
+            if ($LASTEXITCODE -ne 0 -or $tagRevision -ne $sourceRevision) {
+              throw 'The release tag must identify the exact commit being built.'
+            }
+            if ($env:REPOSITORY_IS_PRIVATE -eq 'true') {
+              throw 'Tagged release candidates require public source and publicly verifiable provenance.'
+            }
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Verify the runner's existing Inno Setup compiler
+        id: inno
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Use the installed compiler, not a Chocolatey shim or a downloaded installer.
+          # https://github.com/actions/runner-images/blob/main/images/windows/Windows2022-Readme.md
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw 'The runner does not supply the expected Inno Setup compiler. No replacement will be downloaded.'
+          }
+          $compiler = (Resolve-Path -LiteralPath $compiler).Path
+          $signature = Get-AuthenticodeSignature -LiteralPath $compiler
+          if ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate -or
+              $signature.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false) -cne 'Pyrsys B.V.') {
+            throw 'The existing Inno Setup compiler does not have its expected valid publisher signature.'
+          }
+          # build_windows.ps1 verifies the actual compiler version with its local
+          # no-output preprocessing probe and records it in the build manifest.
+          $compilerHash = (Get-FileHash -LiteralPath $compiler -Algorithm SHA256).Hash.ToLowerInvariant()
+          "compiler=$compiler" >> $env:GITHUB_OUTPUT
+          "sha256=$compilerHash" >> $env:GITHUB_OUTPUT
+
+      - name: Install the declared application and build dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt -r requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+
+      - name: Run unit tests
+        run: |
+          python -B -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
+
+      - name: Build the application payload and Setup
+        env:
+          INNO_COMPILER: ${{ steps.inno.outputs.compiler }}
+        run: |
+          ./scripts/build_windows.ps1 -PythonExe (Get-Command python).Source -IsccExe $env:INNO_COMPILER -SourceRevision $env:GITHUB_SHA -SkipTests
+
+      - name: Verify isolated installation, application self-test, and uninstall
+        env:
+          PROJECT_VERSION: ${{ steps.source.outputs.version }}
+        run: |
+          ./scripts/verify_windows_setup.ps1 -Installer "dist/VASL-AI-Bridge-Setup-$env:PROJECT_VERSION-x64.exe" -Output 'dist/setup-verification.json'
+
+      - name: Check the exact release artifact set
+        env:
+          PROJECT_VERSION: ${{ steps.source.outputs.version }}
+          INNO_SHA256: ${{ steps.inno.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = "VASL-AI-Bridge-Setup-$env:PROJECT_VERSION-x64.exe"
+          foreach ($filename in @($installer, 'SHA256SUMS.txt', 'build-manifest.json', 'setup-verification.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path 'dist' $filename) -PathType Leaf)) {
+              throw "A required release artifact is missing: $filename"
+            }
+          }
+          $manifest = Get-Content -LiteralPath 'dist/build-manifest.json' -Raw | ConvertFrom-Json
+          $innoVersion = [string]$manifest.build.inno_setup
+          if ($innoVersion -cnotin @('6.7.1', '6.7.3')) {
+            throw 'The recorded Inno Setup compiler version has not been reviewed for this build.'
+          }
+          $hash = (Get-FileHash -LiteralPath (Join-Path 'dist' $installer) -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumLines = @(Get-Content -LiteralPath 'dist/SHA256SUMS.txt')
+          if ($checksumLines -cnotcontains "$hash  $installer") {
+            throw 'The Setup checksum does not match the release checksum file.'
+          }
+          $runUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          @(
+            '### Windows Setup candidate',
+            '',
+            "Source commit: $env:GITHUB_SHA",
+            "Workflow run: $runUrl",
+            "Installer: $installer",
+            "Installer SHA-256: $hash",
+            "Inno Setup compiler version: $innoVersion",
+            "Inno Setup compiler SHA-256: $env:INNO_SHA256",
+            "Antivirus validation: pending for this exact installer.",
+            '',
+            'Download and test these exact bytes before manually publishing a Release.'
+          ) >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Attest the exact public build artifacts
+        id: provenance
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2, SLSA provenance mode
+        with:
+          subject-path: |
+            dist/VASL-AI-Bridge-Setup-${{ steps.source.outputs.version }}-x64.exe
+            dist/SHA256SUMS.txt
+            dist/build-manifest.json
+            dist/setup-verification.json
+          create-storage-record: false
+
+      - name: Preserve the public provenance bundle
+        if: ${{ !github.event.repository.private }}
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          Copy-Item -LiteralPath $env:PROVENANCE_BUNDLE -Destination 'dist/provenance.sigstore.json'
+
+      - name: Identify a private-repository candidate
+        if: ${{ github.event.repository.private }}
+        run: |
+          'This private-repository candidate has no public attestation. Rebuild from public source before publishing an official Release.' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload only the release artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: VASL-AI-Bridge-Windows-${{ steps.source.outputs.version }}-${{ github.sha }}
+          path: |
+            dist/VASL-AI-Bridge-Setup-${{ steps.source.outputs.version }}-x64.exe
+            dist/SHA256SUMS.txt
+            dist/build-manifest.json
+            dist/setup-verification.json
+            dist/provenance.sigstore.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

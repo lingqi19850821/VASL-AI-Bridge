@@ -1,0 +1,202 @@
+{
+  "schema": 1,
+  "qt_version": "6.11.2",
+  "files": [
+    {
+      "path": "GPL-3.0-only.txt",
+      "source": "https://raw.githubusercontent.com/qt/qtbase/v6.11.2/LICENSES/GPL-3.0-only.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "format": "Unmodified upstream file"
+    },
+    {
+      "path": "LGPL-3.0-only.txt",
+      "source": "https://raw.githubusercontent.com/qt/qtbase/v6.11.2/LICENSES/LGPL-3.0-only.txt",
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "format": "Unmodified upstream file"
+    },
+    {
+      "path": "QtGui/FreeType.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtgui-attribution-freetype.html",
+      "sha256": "31378bba62606757d39bfb85bbb493e2a1e312cfcfd606ebbf1c9d914d2230d7",
+      "source_sha256": "47d0068bf7ccc0044fa0af6dfa9718b2b494f4467604fa1202b8106a5febd8d0",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "Freetype 2, version 2.14.3 | Qt GUI | Qt 6.11.2"
+    },
+    {
+      "path": "QtGui/HarfBuzz.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtgui-attribution-harfbuzz-ng.html",
+      "sha256": "d86ab57ed81e55e53a4387ee5c4643fab5d8a53d9c78fda53913b7ec38c6836a",
+      "source_sha256": "60c0117b6fb0bf0a50eed4b71ebc1f57629bf636ae9babd841c31be6df01c553",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "HarfBuzz-NG, version 14.3.0 | Qt GUI | Qt 6.11.2"
+    },
+    {
+      "path": "QtGui/SmoothScaling.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtgui-attribution-smooth-scaling-algorithm.html",
+      "sha256": "76d7b873499b58f04b0ece71055b71ecc6c7da65aaa089f59df5ace07b8305ce",
+      "source_sha256": "0a4f3a5564f163fffa407f1ffaee8398e466d68c21b0e3f55f6dcdd493b08d0e",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "Smooth Scaling Algorithm | Qt GUI | Qt 6.11.2"
+    },
+    {
+      "path": "QtGui/libjpeg-turbo.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtgui-attribution-libjpeg.html",
+      "sha256": "a7f93f704061c15c94474c91aba5b9dff4889fb26be75efb385a91e7e48e7261",
+      "source_sha256": "78e44d48db72f43bf844539d9be8f6993aea770bf2bb256463f7b90b736c1668",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "LibJPEG-turbo, version 3.2.0 | Qt GUI | Qt 6.11.2"
+    },
+    {
+      "path": "QtGui/libpng.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtgui-attribution-libpng.html",
+      "sha256": "be9536c294a670e93ebd9fdd114eb69c817a1b997ee47b54ad0baf9250614e61",
+      "source_sha256": "08480b3d18f2ad46aa26ef2a5876b43a3242dcbeadb51ba39b9de690ce13a0d1",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "LibPNG, version 1.6.58 | Qt GUI | Qt 6.11.2"
+    },
+    {
+      "path": "QtImageFormats/libtiff.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtimageformats-attribution-libtiff.html",
+      "sha256": "bc5764deb3953335fc4254640f215ae2a3ee774b0f217fbe1ca6c90e34d961ef",
+      "source_sha256": "99ee35115095573cf36147abbb1b968beb70aaf4ce684cb02fcaff5c2691e9a3",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "TIFF Software Distribution (libtiff), version 4.7.2 | Qt Image Formats | Qt 6.11.2"
+    },
+    {
+      "path": "QtImageFormats/libwebp.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtimageformats-attribution-libwebp.html",
+      "sha256": "13c3a94f8c02fb56c4a34aa34a8fdd335e79e0804798af74defbad5f30438e6a",
+      "source_sha256": "1bbbe45609769041aab96b98538077c53d93ddbc113e0ca544b7bb1b1e036a25",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "WebP (libwebp), version 1.6.0 | Qt Image Formats | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/Boost.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-ffmpeg-boost.html",
+      "sha256": "e626c6f3ef50e179e8eef1968acae1801db8c7e915891fbadff32625d3429aed",
+      "source_sha256": "bc361978989bb70cb18cbff19af5f53fcd7b6767599dd181fb59743208d0f827",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "boost | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/DRLibs.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-dr-libs.html",
+      "sha256": "cf5e8e5b55b03371231338fe290c97c8f63d3c1b544de256040d6de771c95aaa",
+      "source_sha256": "86c923383ff9aa9df0571dded114bb5c45f1465e75e38782f9b494fa2c88e813",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "DR Libs, version 0.14.5 | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/FFmpeg.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-ffmpeg.html",
+      "sha256": "94f4fd2c1288dc88d7f56af2a7d868f02cfd5e609cb8bc7d957e9a7d24368f8c",
+      "source_sha256": "3b44055a6705e587bb433b169e7573aca75b1e24fd62e906a2159a44d28d172c",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "FFmpeg, version 7.1.3 | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/SignalsmithStretch.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-signalsmith-stretch.html",
+      "sha256": "17190bc41938a7b955c59be53c0a01cb6b7b7dbe3bed6a6d867e5c4986d369ad",
+      "source_sha256": "ce82774063222593364653b94074aa1a178462cbcaaf972f55cf8c578305b06e",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "Signalsmith Stretch, version 1.0.0 | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/TLSF.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-tlfs.html",
+      "sha256": "c87de8306ab56a2e58115efc9eb036724cc861e78d3a9e006f4c70bcf8479056",
+      "source_sha256": "0734ba081864e648485aa20624e95e604d0e289c8030561f205a98ec71ab0896",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "Two-Level Segregated Fit, version v3.1 | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/libjpeg.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-ffmpeg-libjpeg.html",
+      "sha256": "d565fd663d3100108ea78bb1bfee1d45a047b90e17204ef9bde36f6b4c430710",
+      "source_sha256": "b4c863b38764227debb661e58972b3dfd0eb78b42e8b28387f02527cf7f6e408",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "libjpeg | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtMultimedia/zlib.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtmultimedia-attribution-ffmpeg-zlib.html",
+      "sha256": "30241fb5b8442c1983b4163c5959a647e2e8b790edb7888ad084ebff6b604fdc",
+      "source_sha256": "79422e12d70b68485d46c043305d3a72305e3b7ea8c27661309394956b3aa0fa",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "zlib | Qt Multimedia | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/Abseil.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-abseil.html",
+      "sha256": "821a111b3b9b5106b18f8226b025425fe659714db587f39fc753c12e1dcd550f",
+      "source_sha256": "9a83efa7502c32f27d4298d0b0c25d25ed5345c1c1345c2cf6ce7798b5aec93a",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "Abseil | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/Chromium.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-the-chromium-project.html",
+      "sha256": "c5c24bde2aa6de040e8a943c1d1647788344a5a2dc309a8b636ab75ebed46010",
+      "source_sha256": "d89213f07fca2ac57be697dfc74b40a700609e20f6d7d9f9d164a01270fe2d0d",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "The Chromium Project | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/FreeType.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-freetype.html",
+      "sha256": "dc31e69a239b41c56b904693f25be178bd14b12324190dc676b656024846e80f",
+      "source_sha256": "b7ab4211678a46c56a93c07c153ce7537d96d3ced66e747685f98efddcddcd8e",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "FreeType | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/ICU.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-icu.html",
+      "sha256": "cf2a68a0efda7c4410dfe45132ebf82892fe4cb402174ff22e6b7d2385c4dc71",
+      "source_sha256": "8854c69a0b657e2eae6fb659e8ee7c65dbac6982c7360c0ad1420e8c54c6131e",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "icu | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/PDFium.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-pdfium.html",
+      "sha256": "8a014f571706d92d59f4f592dd62d3c73eccf27b8356bf0e5166cc529d42273a",
+      "source_sha256": "adf2dd0fa77c85423d7f3e2fe47069177a923ffbf8120c50ac571835cc1f3bc4",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "PDFium | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/fast_float.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-fast-float.html",
+      "sha256": "d8b4c5f45ed43e13ae86194cfb8732c2e93cc9860d8ee917f976c963b403f8b7",
+      "source_sha256": "e6fd7aeed86828bacd9719862879feac88a3fbaa23d9aa38224006b982e06bcd",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "fast_float | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/libjpeg-turbo.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-libjpeg-turbo.html",
+      "sha256": "977ffcac71be61f8ed69dea5b91f2f27068c492b1133c1976338c48863d33f0b",
+      "source_sha256": "ab1e9ce5412c2bd6743f387339fb56a0230a3aa9e2e3efe022c389eae25edddb",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "libjpeg-turbo | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/libpng.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-libpng.html",
+      "sha256": "109ea2a96f51c7d7ffd045d426666e1463402a5c80455b96e6be59cf63f3f11b",
+      "source_sha256": "0a20f5a96fca74ec9676993231a0c042a428d603d3dd7202ca7dd229b643e97c",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "libpng | Qt PDF | Qt 6.11.2"
+    },
+    {
+      "path": "QtPdf/zlib.txt",
+      "source": "https://doc.qt.io/qt-6.11/qtpdf-3rdparty-zlib.html",
+      "sha256": "be3a002cdcbb68e552217f2ed61dfd8a689c104eb0d126b1b888af869f7cd2c9",
+      "source_sha256": "860ecdc367f740de53472ca70dde60eaed126b736ba828131afbbc87c5c42dea",
+      "format": "Qt attribution description extracted as UTF-8 text",
+      "title": "zlib | Qt PDF | Qt 6.11.2"
+    }
+  ]
+}

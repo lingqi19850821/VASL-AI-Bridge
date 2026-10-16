@@ -1,0 +1,2 @@
+# Preserve the exact vendor license bytes checked by the build manifest.
+packaging/licenses/** -text -whitespace

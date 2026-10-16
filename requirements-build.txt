@@ -1,0 +1,9 @@
+# Install into a dedicated Windows x64 Python 3.12 build environment.
+-r requirements.txt
+PyInstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
+altgraph==0.17.5
+packaging==26.0
+pefile==2024.8.26
+pywin32-ctypes==0.2.3
+setuptools==70.2.0
