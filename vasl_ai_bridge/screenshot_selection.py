@@ -11,6 +11,7 @@ from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from .capture import _prepare_image
+from .i18n import localize_widget_tree, tr
 from .session import Observation
 
 
@@ -142,8 +143,9 @@ class ScreenshotSelectionDialog(QDialog):
         self.setWindowTitle("Select screenshot area")
         self.canvas = ScreenshotSelectionCanvas(observation, self)
         self.details = QLabel(
-            "Drag to select any area, including the board or dice log.\n"
-            f"Captured: {observation.captured_at} | {observation.width} x {observation.height}"
+            tr("Drag to select any area, including the board or dice log.\n"
+               "Captured: {captured_at} | {width} x {height}",
+               captured_at=observation.captured_at, width=observation.width, height=observation.height)
         )
         self.details.setTextFormat(Qt.TextFormat.PlainText)
         self.details.setWordWrap(True)
@@ -170,14 +172,15 @@ class ScreenshotSelectionDialog(QDialog):
         layout.addLayout(buttons)
         screen = self.screen().availableGeometry()
         self.resize(min(1100, int(screen.width() * .9)), min(800, int(screen.height() * .85)))
+        localize_widget_tree(self)
 
     def _selection_changed(self, box) -> None:
         self.use_button.setEnabled(box is not None)
         if box:
             left, top, right, bottom = box
-            self.selection_label.setText(f"Selected: {right - left} x {bottom - top}")
+            self.selection_label.setText(tr("Selected: {width} x {height}", width=right - left, height=bottom - top))
         else:
-            self.selection_label.setText("No area selected")
+            self.selection_label.setText(tr("No area selected"))
 
     def keep_full_image(self) -> None:
         self.selected_observation = prepare_full_observation(self.observation)

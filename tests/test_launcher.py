@@ -15,6 +15,13 @@ def temporary_directory(**kwargs):
 
 
 class LauncherTests(unittest.TestCase):
+    def setUp(self):
+        # Existing diagnostic tests assert the English fallback independently
+        # of the machine's real UI language or an owner's saved preferences.
+        language = patch.object(launcher, "_startup_language", return_value="en")
+        language.start()
+        self.addCleanup(language.stop)
+
     @staticmethod
     def _raised_error(error, filename, source="raise failure\n"):
         try:
@@ -251,6 +258,103 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(launcher._frame_location(filename, 1), "<external>")
         with patch.object(launcher.Path, "resolve", side_effect=PermissionError("PRIVATE_PATH")):
             self.assertEqual(launcher._frame_location(filename, 1), "<external>")
+
+
+class StartupLanguageTests(unittest.TestCase):
+    def test_saved_chinese_language_survives_missing_app_dependency(self):
+        for language, phrase in (("zh_CN", "无法启动"), ("zh_TW", "無法啟動")):
+            with self.subTest(language=language), temporary_directory(prefix="PRIVATE_STARTUP_") as directory, \
+                    patch.dict(launcher.os.environ, {"LOCALAPPDATA": directory}), \
+                    patch.object(launcher, "_system_startup_language", return_value="en"), \
+                    patch.object(launcher.importlib, "import_module", side_effect=ImportError("PRIVATE_DEPENDENCY")), \
+                    patch.object(launcher, "_show_error") as show:
+                root = Path(directory) / "ASL_AI"
+                root.mkdir()
+                (root / "settings.ini").write_text(
+                    "[General]\nui_language=" + language + "\nvoice_program_path=100%PRIVATE_PATH\n", encoding="utf-8-sig")
+                self.assertEqual(1, launcher.main())
+                content = (root / "startup-error.log").read_text(encoding="utf-8")
+                message = show.call_args.args[0]
+                self.assertIn(phrase, message)
+                self.assertIn("ImportError", message)
+                self.assertEqual(language, show.call_args.kwargs["language"])
+                self.assertIn(r"%LOCALAPPDATA%\ASL_AI\startup-error.log", message)
+                self.assertIn("startup diagnostic (privacy-filtered)", content)
+                self.assertIn("Error category: ImportError", content)
+                self.assertNotIn(phrase, content)
+                for output in (message, content):
+                    self.assertNotIn("PRIVATE_DEPENDENCY", output)
+                    self.assertNotIn("PRIVATE_PATH", output)
+                    self.assertNotIn(directory, output)
+
+    def test_chinese_dialog_keeps_the_english_diagnostic_bytes(self):
+        error = ValueError("PRIVATE_CONTENT")
+        expected = launcher._startup_diagnostic(error)
+        with temporary_directory() as directory, \
+                patch.dict(launcher.os.environ, {"LOCALAPPDATA": directory}), \
+                patch.object(launcher, "_startup_language", return_value="zh_TW"), \
+                patch.object(launcher, "_show_error") as show:
+            launcher._report_startup_error(error)
+            content = (Path(directory) / "ASL_AI" / "startup-error.log").read_text(encoding="utf-8")
+        self.assertEqual(expected, content)
+        self.assertIn("錯誤類別：ValueError", show.call_args.args[0])
+        self.assertNotIn("PRIVATE_CONTENT", show.call_args.args[0])
+
+    def test_absent_preference_uses_native_ui_language(self):
+        with temporary_directory() as directory, \
+                patch.dict(launcher.os.environ, {"LOCALAPPDATA": directory}), \
+                patch.object(launcher, "_system_startup_language", return_value="zh_TW"):
+            self.assertEqual("zh_TW", launcher._startup_language())
+            root = Path(directory) / "ASL_AI"
+            root.mkdir()
+            (root / "settings.ini").write_text("[General]\nvoice_language=auto\n", encoding="utf-8")
+            self.assertEqual("zh_TW", launcher._startup_language())
+
+    def test_malformed_or_unsupported_preference_falls_back_to_english(self):
+        contents = (
+            b"[General]\nui_language=fr\n",
+            b"[General]\nui_language=\n",
+            b"[General]\nui_language=zh_CN\nui_language=zh_TW\n",
+            b"not an INI file",
+            b"[General]\nui_language=\xff\n",
+        )
+        with temporary_directory() as directory, \
+                patch.dict(launcher.os.environ, {"LOCALAPPDATA": directory}), \
+                patch.object(launcher, "_system_startup_language", return_value="zh_CN"):
+            root = Path(directory) / "ASL_AI"
+            root.mkdir()
+            for content in contents:
+                with self.subTest(content=content):
+                    (root / "settings.ini").write_bytes(content)
+                    self.assertEqual("en", launcher._startup_language())
+
+    def test_unreadable_preferences_fall_back_without_exposing_error(self):
+        with patch.object(launcher.Path, "open", side_effect=PermissionError("PRIVATE_PATH")):
+            self.assertEqual("en", launcher._startup_language())
+
+    def test_native_chinese_territories_and_unknown_languages(self):
+        expected = {
+            0x0804: "zh_CN", 0x1004: "zh_CN", 0x0404: "zh_TW",
+            0x0C04: "zh_TW", 0x1404: "zh_TW", 0x0409: "en", 0: "en",
+        }
+        for language_id, language in expected.items():
+            with self.subTest(language_id=language_id):
+                getter = Mock(return_value=language_id)
+                native = SimpleNamespace(kernel32=SimpleNamespace(GetUserDefaultUILanguage=getter))
+                with patch.object(launcher.os, "name", "nt"), patch.object(launcher.ctypes, "windll", native, create=True):
+                    self.assertEqual(language, launcher._system_startup_language())
+        getter = Mock(side_effect=OSError("PRIVATE_SYSTEM_ERROR"))
+        native = SimpleNamespace(kernel32=SimpleNamespace(GetUserDefaultUILanguage=getter))
+        with patch.object(launcher.os, "name", "nt"), patch.object(launcher.ctypes, "windll", native, create=True):
+            self.assertEqual("en", launcher._system_startup_language())
+
+    def test_native_error_title_uses_the_same_selected_language(self):
+        message_box = Mock()
+        native = SimpleNamespace(user32=SimpleNamespace(MessageBoxW=message_box))
+        with patch.object(launcher.os, "name", "nt"), patch.object(launcher.ctypes, "windll", native, create=True):
+            launcher._show_error("Synthetic localized message", language="zh_TW")
+        self.assertEqual("Synthetic localized message", message_box.call_args.args[1])
+        self.assertIn("啟動錯誤", message_box.call_args.args[2])
 
 
 if __name__ == "__main__":

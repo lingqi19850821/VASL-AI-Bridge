@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import APP_NAME
+from .i18n import LANGUAGE_NAMES, UI_LANGUAGES, localize_error, localize_widget_tree, tr
 from .preferences import AppPreferences
 from .hotkey import native_shortcut
 from .voice import VoiceConfig, VoiceError, resolve_voice_config
@@ -24,6 +25,15 @@ class SettingsDialog(QDialog):
         self.setMinimumWidth(440)
         self.original = preferences
         layout = QVBoxLayout(self)
+
+        language_form = QFormLayout()
+        self.language_combo = QComboBox()
+        self.language_combo.setProperty("i18n_skip_items", True)
+        for language in UI_LANGUAGES:
+            self.language_combo.addItem(LANGUAGE_NAMES[language], language)
+        self.language_combo.setCurrentIndex(self.language_combo.findData(preferences.ui_language))
+        language_form.addRow("Language / 语言", self.language_combo)
+        layout.addLayout(language_form)
 
         capture = QGroupBox("Screenshot")
         capture_form = QFormLayout(capture)
@@ -40,7 +50,7 @@ class SettingsDialog(QDialog):
         for key in ("Tab", "CapsLock", "Shift"):
             self.special_key_combo.addItem(key, key)
         capture_form.addRow("Use a single key", self.special_key_combo)
-        self.capture_hint = QLabel(f"With {APP_NAME} in front, the shortcut works like Capture and select. With the selected board in front, it freezes the visible image before selection opens.")
+        self.capture_hint = QLabel(tr("With {app_name} in front, the shortcut works like Capture and select. With the selected board in front, it freezes the visible image before selection opens.", app_name=APP_NAME))
         self.capture_hint.setWordWrap(True)
         capture_form.addRow(self.capture_hint)
         layout.addWidget(capture)
@@ -132,6 +142,7 @@ class SettingsDialog(QDialog):
         self._capture_kind_changed()
         self._send_mode_changed()
         self._voice_engine_changed()
+        localize_widget_tree(self)
 
     def _capture_kind_changed(self, *args) -> None:
         keyboard = self.capture_kind_combo.currentData() == "keyboard"
@@ -144,8 +155,8 @@ class SettingsDialog(QDialog):
             self.capture_editor.setKeySequence(QKeySequence(key))
 
     def _send_mode_changed(self, *args) -> None:
-        self.send_hint.setText("Shift+Enter adds a new line." if self.send_mode_combo.currentData() == "enter"
-                               else "Enter adds a new line.")
+        self.send_hint.setText(tr("Shift+Enter adds a new line." if self.send_mode_combo.currentData() == "enter"
+                                  else "Enter adds a new line."))
 
     def _voice_engine_changed(self, *args) -> None:
         automatic = self.voice_backend_combo.currentData() == "auto"
@@ -156,16 +167,16 @@ class SettingsDialog(QDialog):
             try:
                 resolved = resolve_voice_config(VoiceConfig())
                 program, model = resolved.program_path, resolved.model_path
-                text = "The paths shown are the actual automatically selected engine and model. Manual paths are retained separately. Spoken language is detected automatically. Speech becomes a draft for review before Send."
+                text = tr("The paths shown are the actual automatically selected engine and model. Manual paths are retained separately. Spoken language is detected automatically. Speech becomes a draft for review before Send.")
             except VoiceError as error:
                 program = model = ""
-                text = str(error)
+                text = localize_error(str(error))
         else:
             program, model = self._custom_voice_program, self._custom_voice_model
             if self.voice_backend_combo.currentData() == "whisper_desktop":
-                text = "Choose your installed Desktop executable or enter its installation folder, and select the existing GGML model. The folder and all subfolders are searched for Whisper.dll, whose native interface is checked before recording. Spoken language is detected automatically. Speech becomes a draft for review before Send."
+                text = tr("Choose your installed Desktop executable or enter its installation folder, and select the existing GGML model. The folder and all subfolders are searched for Whisper.dll, whose native interface is checked before recording. Spoken language is detected automatically. Speech becomes a draft for review before Send.")
             else:
-                text = "Choose whisper-cli.exe and its GGML model file. This CPU engine has passed a local real-model transcription check. Spoken language is detected automatically. Speech becomes a draft for review before Send."
+                text = tr("Choose whisper-cli.exe and its GGML model file. This CPU engine has passed a local real-model transcription check. Spoken language is detected automatically. Speech becomes a draft for review before Send.")
         self._updating_voice_paths = True
         try:
             self.voice_program_edit.setText(program)
@@ -173,7 +184,7 @@ class SettingsDialog(QDialog):
         finally:
             self._updating_voice_paths = False
         self.voice_hint.setText(text)
-        self.voice_program_edit.setPlaceholderText("Desktop executable or installation folder" if self.voice_backend_combo.currentData() == "whisper_desktop" else "Choose whisper-cli.exe")
+        self.voice_program_edit.setPlaceholderText(tr("Desktop executable or installation folder" if self.voice_backend_combo.currentData() == "whisper_desktop" else "Choose whisper-cli.exe"))
 
     def _voice_program_changed(self, text: str) -> None:
         if not self._updating_voice_paths and self.voice_backend_combo.currentData() != "auto":
@@ -191,17 +202,17 @@ class SettingsDialog(QDialog):
                        chat_font_weight=self.font_weight_combo.currentData(), ui_font_size=self.ui_size_spin.value(),
                        send_mode=self.send_mode_combo.currentData(), voice_backend=self.voice_backend_combo.currentData(),
                        voice_program_path=self._custom_voice_program.strip(), voice_model_path=self._custom_voice_model.strip(),
-                       voice_language="auto")
+                       voice_language="auto", ui_language=self.language_combo.currentData())
 
     def _browse_voice_program(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose local voice executable", self.voice_program_edit.text(),
-                                            "Executables (*.exe);;All files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Choose local voice executable"), self.voice_program_edit.text(),
+                                            tr("Executables (*.exe);;All files (*)"))
         if path:
             self.voice_program_edit.setText(path)
 
     def _browse_voice_model_file(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Choose local voice model", self.voice_model_edit.text(),
-                                            "GGML models (*.bin);;All files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Choose local voice model"), self.voice_model_edit.text(),
+                                            tr("GGML models (*.bin);;All files (*)"))
         if path:
             self.voice_model_edit.setText(path)
 
@@ -211,6 +222,6 @@ class SettingsDialog(QDialog):
             if self.capture_kind_combo.currentData() == "keyboard":
                 native_shortcut(preferences.capture_shortcut)
         except ValueError as exc:
-            self.error_label.setText(str(exc))
+            self.error_label.setText(localize_error(str(exc)))
             return
         self.accept()

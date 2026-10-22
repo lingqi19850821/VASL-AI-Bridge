@@ -75,6 +75,38 @@ def _normalized(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def _lesson_classification(item: dict, *, allow_untagged: bool = False) -> tuple[str, str]:
+    """Validate declared applicability without inferring ASL or scenario meaning."""
+    if allow_untagged and "scope" not in item and "scenario_name" not in item:
+        return "unclassified", ""
+    scope = item.get("scope")
+    if not isinstance(scope, str) or scope not in {"general", "scenario"}:
+        raise GameMemoryError("A lesson scope must be general or scenario.")
+    scenario_name = _text(item.get("scenario_name"), "scenario_name", 200)
+    if scope == "scenario" and not scenario_name:
+        raise GameMemoryError("A scenario lesson requires a scenario name.")
+    if scope == "general" and scenario_name:
+        raise GameMemoryError("A general lesson must have an empty scenario name.")
+    return scope, scenario_name
+
+
+def _experience_filter(arguments: dict) -> tuple[str, str]:
+    scope = arguments.get("scope", "general")
+    if not isinstance(scope, str) or scope not in {"general", "scenario", "unclassified"}:
+        raise GameMemoryError("An experience lookup scope must be general, scenario, or unclassified.")
+    scenario_name = _text(arguments.get("scenario_name", ""), "scenario_name", 200)
+    if scope == "scenario" and not scenario_name:
+        raise GameMemoryError("A scenario lookup requires a scenario name.")
+    if scope != "scenario" and scenario_name:
+        raise GameMemoryError("Only a scenario lookup may include a scenario name.")
+    return scope, scenario_name
+
+
+def _matches_experience_scope(item: dict, scope: str, scenario_name: str) -> bool:
+    stored_scope, stored_name = _lesson_classification(item, allow_untagged=True)
+    return stored_scope == scope and (scope != "scenario" or _normalized(stored_name) == _normalized(scenario_name))
+
+
 class MemoryService:
     """Immediate, atomic JSON writes protected against concurrent tool callbacks.
 
@@ -199,6 +231,7 @@ class MemoryService:
                                          for image in source["images"]) for source in revision["source_evidence"])
                            for revision in item["revisions"])):
                 raise GameMemoryError("The shared experience library contains invalid records; it was not replaced.")
+            _lesson_classification(item, allow_untagged=True)
             identifiers.add(item["lesson_id"])
         return data
 
@@ -228,13 +261,20 @@ class MemoryService:
             library = self._library()
             visible = self._visible_entries(journal, session)
             lessons = library["lessons"]
+            scopes = {scope: sum(_lesson_classification(item, allow_untagged=True)[0] == scope for item in lessons)
+                      for scope in ("general", "scenario", "unclassified")}
+            general = [item for item in lessons if _matches_experience_scope(item, "general", "")]
             return {"session_id": session.session_id, "journal_entries": len(visible),
                     "pending_message_ids": self.pending_message_ids(session, context),
                     "shared_lesson_count": len(lessons),
+                    "lesson_scope_counts": scopes,
                     "recent_lessons": [{"lesson_id": item["lesson_id"], "title": item.get("title", ""),
-                                        "status": item.get("status", "candidate")}
-                                       for item in lessons[-10:]],
-                    "note": "The journal follows this checkpoint's visible messages. Shared lessons are not rewound."}
+                                        "status": item.get("status", "candidate"),
+                                        "scope": "general", "scenario_name": ""}
+                                       for item in general[-10:]],
+                    "note": "Recent lessons include general candidates only. Scenario lessons require a named scenario lookup; "
+                            "untagged records require an explicit unclassified lookup. The journal follows this checkpoint's "
+                            "visible messages. Shared lessons are not rewound."}
 
     def prompt_context(self, session: ChatSession, context: dict | None = None) -> str:
         catalog = self.catalog(session, context)
@@ -340,8 +380,10 @@ class MemoryService:
         for item in _items(arguments.get("lessons", []), "lessons", 12):
             if not isinstance(item, dict) or set(item) - {
                     "title", "lesson", "conditions", "observed_result", "evidence_kind",
-                    "source_message_ids", "journal_entry_ids", "existing_lesson_id", "relationship"}:
+                    "source_message_ids", "journal_entry_ids", "existing_lesson_id", "relationship",
+                    "scope", "scenario_name"}:
                 raise GameMemoryError("A lesson must contain only the supported fields.")
+            scope, scenario_name = _lesson_classification(item)
             sources = self._sources(session, item.get("source_message_ids", []), user_only=True, context=context)
             if not sources:
                 raise GameMemoryError("A candidate lesson needs the player's reported evidence, not a plan alone.")
@@ -351,6 +393,7 @@ class MemoryService:
             payload = {field: _text(item.get(field, ""), field, 3000 if field != "title" else 200,
                                    required=field != "conditions")
                        for field in ("title", "lesson", "conditions", "observed_result")}
+            payload.update({"scope": scope, "scenario_name": scenario_name})
             journal_ids = []
             for identifier in _items(item.get("journal_entry_ids", []), "journal_entry_ids"):
                 identifier = _identifier(identifier, "journal_entry_id")
@@ -363,19 +406,28 @@ class MemoryService:
             match = next((record for record in library["lessons"] if record["lesson_id"] == existing_id), None)
             if existing_id and match is None:
                 raise GameMemoryError("The experience record to revise does not exist.")
+            if match is not None and not _matches_experience_scope(match, scope, scenario_name):
+                raise GameMemoryError("A lesson revision must keep its existing scope and scenario name.")
             relationship = item.get("relationship", "supports")
             if relationship not in {"supports", "contradicts", "revises"}:
                 raise GameMemoryError("Unsupported experience relationship.")
-            signature = _identity("lesson-", [_normalized(payload["lesson"]), _normalized(payload["conditions"])])
+            signature = _identity("lesson-", [scope, _normalized(scenario_name),
+                                               _normalized(payload["lesson"]), _normalized(payload["conditions"])])
             if match is None:
                 match = next((record for record in library["lessons"] if record["lesson_id"] == signature), None)
+                if match is not None and not _matches_experience_scope(match, scope, scenario_name):
+                    raise GameMemoryError("A lesson revision must keep its existing scope and scenario name.")
             if match is None:
                 if relationship != "supports":
                     raise GameMemoryError("A revision or counterexample requires an existing lesson ID.")
                 match = {"lesson_id": signature, "title": payload["title"], "lesson": payload["lesson"],
                          "conditions": payload["conditions"], "status": "candidate",
+                         "scope": scope, "scenario_name": scenario_name,
                          "created_at": trusted["recorded_at"], "revisions": []}
                 library["lessons"].append(match)
+            # Equivalent case/spacing in the lookup must not change the stored
+            # scenario title or turn the same source/content into new evidence.
+            payload["scenario_name"] = match["scenario_name"]
             revision = {**trusted, **payload, "source_message_ids": sources,
                         "journal_entry_ids": journal_ids, "evidence_kind": kind,
                         "relationship": relationship, "source_evidence": self._evidence(session, sources)}
@@ -407,7 +459,8 @@ class MemoryService:
         return {"saved": True, "intent_ids": written_intents, "lesson_ids": written_lessons,
                 "processed_message_ids": processed,
                 "pending_message_ids": self.pending_message_ids(session, context),
-                "note": "Lessons are unreviewed candidates, available to future games and models immediately."}
+                "note": "Lessons are unreviewed candidates. General lessons are shared by default; scenario lessons "
+                        "require a lookup for the named scenario."}
 
     def _review(self, session: ChatSession, arguments: dict, context: dict | None) -> dict:
         trusted = self._trusted(session, context)
@@ -476,6 +529,8 @@ class MemoryService:
 
     def _lesson_for_read(self, lesson: dict) -> dict:
         record = deepcopy(lesson)
+        scope, scenario_name = _lesson_classification(lesson, allow_untagged=True)
+        record.update({"scope": scope, "scenario_name": scenario_name})
         game_images: dict[str, set[str]] = {}
         for revision in record["revisions"]:
             game_id = revision.get("session_id", "")
@@ -507,8 +562,8 @@ class MemoryService:
             "record_review": {"title", "text", "source_message_ids"},
             "search_tactical_journal": {"query", "limit"},
             "read_tactical_journal": {"entry_id", "offset", "limit"},
-            "search_experience": {"query", "limit"},
-            "read_experience": {"lesson_id", "offset", "max_chars"},
+            "search_experience": {"query", "limit", "scope", "scenario_name"},
+            "read_experience": {"lesson_id", "offset", "max_chars", "scope", "scenario_name"},
         }
         if set(arguments) - allowed[name]:
             raise GameMemoryError("Only the registered bounded fields are accepted by this memory tool.")
@@ -550,23 +605,32 @@ class MemoryService:
                 return {"entries": selected, "total_entries": len(entries),
                         "next_offset": following if following < len(entries) else None}
             library = self._library()
+            scope, scenario_name = _experience_filter(arguments)
             if name == "search_experience":
                 query = _text(arguments.get("query", ""), "query", 2000).casefold()
                 limit = max(1, _integer(arguments, "limit", 20, 30))
                 matches = [{"lesson_id": item["lesson_id"], "title": item["title"],
                             "status": item["status"], "excerpt": item["lesson"][:800],
-                            "conditions": item["conditions"][:500], "evidence_count": len(item["revisions"])}
-                           for item in library["lessons"] if query in _json(item).casefold()]
+                            "conditions": item["conditions"][:500], "evidence_count": len(item["revisions"]),
+                            "scope": _lesson_classification(item, allow_untagged=True)[0],
+                            "scenario_name": _lesson_classification(item, allow_untagged=True)[1]}
+                           for item in library["lessons"] if _matches_experience_scope(item, scope, scenario_name)
+                           and query in _json(item).casefold()]
                 return {"matches": matches[:limit], "total_matches": len(matches),
-                        "note": "Shared across games and models, including later experience after a checkpoint. Candidates can be wrong."}
+                        "scope": scope, "scenario_name": scenario_name,
+                        "note": "Only the requested applicability scope is included. Candidates can be wrong; "
+                                "unclassified records have no established applicability. Shared experience is not rewound."}
             identifier = _identifier(arguments.get("lesson_id", ""), "lesson_id")
             record = next((item for item in library["lessons"] if item["lesson_id"] == identifier), None)
             if record is None:
                 raise GameMemoryError("This shared experience record does not exist.")
+            if not _matches_experience_scope(record, scope, scenario_name):
+                raise GameMemoryError("This experience record does not match the requested scope and scenario name.")
             text = _json(self._lesson_for_read(record))
             offset = _integer(arguments, "offset", 0, 100_000_000)
             maximum = max(1, _integer(arguments, "max_chars", 12000, 24000))
             following = offset + min(maximum, max(0, len(text) - offset))
             return {"lesson_id": identifier, "status": record["status"], "text": text[offset:following],
+                    "scope": scope, "scenario_name": _lesson_classification(record, allow_untagged=True)[1],
                     "total_chars": len(text), "next_text_offset": following if following < len(text) else None,
                     "note": "Source excerpts are preserved. Original image availability depends on the source game folder."}

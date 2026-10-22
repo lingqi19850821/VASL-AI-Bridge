@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QPushButton, QVBoxLayout, QWidget,
 )
 
+from .i18n import localize_error, localize_widget_tree, tr
+
 
 EXPERIENCE_HINT = (
     "Opening an earlier save point restores that point's game record. "
@@ -40,9 +42,9 @@ def format_size(size: int) -> str:
     value = float(max(0, size))
     for unit in ("bytes", "KB", "MB", "GB", "TB"):
         if value < 1024 or unit == "TB":
-            return f"{int(value)} bytes" if unit == "bytes" else f"{value:.1f} {unit}"
+            return tr("{size} bytes", size=int(value)) if unit == "bytes" else f"{value:.1f} {unit}"
         value /= 1024
-    return "0 bytes"
+    return tr("{size} bytes", size=0)
 
 
 def _record_folder(record: dict[str, Any]) -> Path:
@@ -56,7 +58,7 @@ def _game_label(record: dict[str, Any]) -> str:
     try:
         fallback = _record_folder(record).name
     except ValueError:
-        fallback = "Unavailable game"
+        fallback = tr("Unavailable game")
     return str(record.get("name") or record.get("title") or fallback)
 
 
@@ -101,9 +103,10 @@ class NewGameDialog(QDialog):
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
+        localize_widget_tree(self)
 
     def _browse(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Choose a location for the new game folder", self.location_edit.text())
+        path = QFileDialog.getExistingDirectory(self, tr("Choose a location for the new game folder"), self.location_edit.text())
         if path:
             self.location_edit.setText(path)
 
@@ -114,13 +117,13 @@ class NewGameDialog(QDialog):
         location, name = self.selection()
         reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
         if not self.location_edit.text().strip() or not location.is_dir():
-            self.error_label.setText("Choose an existing location for the new game folder.")
+            self.error_label.setText(tr("Choose an existing location for the new game folder."))
         elif not name or name in (".", ".."):
-            self.error_label.setText("Enter a name for the game folder.")
+            self.error_label.setText(tr("Enter a name for the game folder."))
         elif any(character in '<>:"/\\|?*' or ord(character) < 32 for character in name) or name.endswith((".", " ")) or name.split(".", 1)[0].upper() in reserved:
-            self.error_label.setText("Choose a folder name without reserved names or these characters: < > : \" / \\ | ? *")
+            self.error_label.setText(tr("Choose a folder name without reserved names or these characters: < > : \" / \\ | ? *"))
         elif (location / name).exists():
-            self.error_label.setText("A file or folder with this name already exists. Choose another name.")
+            self.error_label.setText(tr("A file or folder with this name already exists. Choose another name."))
         else:
             super().accept()
 
@@ -137,6 +140,7 @@ class SavePointDialog(QDialog):
         explanation.setWordWrap(True)
         layout.addWidget(explanation)
         self.name_combo = QComboBox()
+        self.name_combo.setProperty("i18n_skip_items", True)
         self.name_combo.setEditable(True)
         self.name_combo.addItems([_point_name(point) for point in points])
         self.name_combo.setCurrentIndex(-1)
@@ -149,6 +153,7 @@ class SavePointDialog(QDialog):
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
+        localize_widget_tree(self)
 
     def point_name(self) -> str:
         return self.name_combo.currentText().strip()
@@ -156,7 +161,7 @@ class SavePointDialog(QDialog):
     def accept(self) -> None:
         name = self.point_name()
         if not name or any(ord(character) < 32 for character in name):
-            self.error_label.setText("Enter a save point name.")
+            self.error_label.setText(tr("Enter a save point name."))
             return
         super().accept()
 
@@ -172,6 +177,7 @@ class OpenGameDialog(QDialog):
         self.setMinimumWidth(540)
         layout = QVBoxLayout(self)
         self.game_combo = QComboBox()
+        self.game_combo.setProperty("i18n_skip_items", True)
         row = QHBoxLayout()
         row.addWidget(self.game_combo, 1)
         self.browse_button = QPushButton("Browse...")
@@ -179,10 +185,12 @@ class OpenGameDialog(QDialog):
         row.addWidget(self.browse_button)
         layout.addLayout(row)
         self.path_label = QLabel()
+        self.path_label.setProperty("i18n_skip", True)
         self.path_label.setWordWrap(True)
         layout.addWidget(self.path_label)
         form = QFormLayout()
         self.point_combo = QComboBox()
+        self.point_combo.setProperty("i18n_skip_items", True)
         self.point_combo.setToolTip(EXPERIENCE_HINT)
         form.addRow("Continue from", self.point_combo)
         layout.addLayout(form)
@@ -200,10 +208,11 @@ class OpenGameDialog(QDialog):
             for record in records:
                 self.game_combo.addItem(_game_label(record), str(_record_folder(record)))
             if not records:
-                self.error_label.setText("Browse to an existing game folder to open it.")
+                self.error_label.setText(tr("Browse to an existing game folder to open it."))
         except _STORAGE_ERRORS as exc:
-            self.error_label.setText(str(exc))
+            self.error_label.setText(localize_error(str(exc)))
         self._update_open_button()
+        localize_widget_tree(self)
 
     def _game_changed(self, index: int) -> None:
         path = self.game_combo.itemData(index)
@@ -218,16 +227,16 @@ class OpenGameDialog(QDialog):
             try:
                 self.folder_store.describe(folder)
                 points = self.folder_store.list_points(folder)
-                self.point_combo.addItem("Current progress", None)
+                self.point_combo.addItem(tr("Current progress"), None)
                 for point in points:
                     self.point_combo.addItem(_point_name(point), _point_id(point))
                 self._folder = folder
             except _STORAGE_ERRORS as exc:
-                self.error_label.setText(f"This game cannot be opened: {exc}")
+                self.error_label.setText(tr("This game cannot be opened: {error}", error=localize_error(str(exc))))
         self._update_open_button()
 
     def _browse(self) -> None:
-        selected = QFileDialog.getExistingDirectory(self, "Open a game folder", str(self._folder or ""))
+        selected = QFileDialog.getExistingDirectory(self, tr("Open a game folder"), str(self._folder or ""))
         if not selected:
             return
         index = self.game_combo.findData(str(Path(selected)))
@@ -265,14 +274,17 @@ class StorageManagerDialog(QDialog):
         self.setMinimumSize(570, 420)
         layout = QVBoxLayout(self)
         self.game_combo = QComboBox()
+        self.game_combo.setProperty("i18n_skip_items", True)
         layout.addWidget(self.game_combo)
         self.path_label = QLabel()
+        self.path_label.setProperty("i18n_skip", True)
         self.path_label.setWordWrap(True)
         layout.addWidget(self.path_label)
         self.usage_label = QLabel()
         layout.addWidget(self.usage_label)
         layout.addWidget(QLabel("Named save points"))
         self.point_list = QListWidget()
+        self.point_list.setProperty("i18n_skip_items", True)
         layout.addWidget(self.point_list, 1)
         self.delete_point_button = QPushButton("Delete selected save point...")
         self.delete_point_button.clicked.connect(self._delete_point)
@@ -302,10 +314,11 @@ class StorageManagerDialog(QDialog):
                 if index >= 0:
                     self.game_combo.setCurrentIndex(index)
             if not self.game_combo.count():
-                self.usage_label.setText("No game folders have been registered yet.")
+                self.usage_label.setText(tr("No game folders have been registered yet."))
         except _STORAGE_ERRORS as exc:
-            self.error_label.setText(str(exc))
+            self.error_label.setText(localize_error(str(exc)))
         self._update_buttons()
+        localize_widget_tree(self)
 
     def _game_changed(self, index: int) -> None:
         value = self.game_combo.itemData(index)
@@ -321,17 +334,17 @@ class StorageManagerDialog(QDialog):
                 description = self.folder_store.describe(self._folder)
                 points = self.folder_store.list_points(self._folder)
                 total = int(description.get("total_bytes", description.get("size_bytes", description.get("bytes", 0))))
-                self.usage_label.setText(f"Disk space used: {format_size(total)}")
+                self.usage_label.setText(tr("Disk space used: {size}", size=format_size(total)))
                 for point in points:
                     self.point_list.addItem(_point_name(point))
                     item = self.point_list.item(self.point_list.count() - 1)
                     item.setData(Qt.UserRole, _point_id(point))
             except _STORAGE_ERRORS as exc:
-                self.usage_label.setText("Storage information unavailable")
-                self.error_label.setText(str(exc))
+                self.usage_label.setText(tr("Storage information unavailable"))
+                self.error_label.setText(localize_error(str(exc)))
                 self._folder = None
         else:
-            self.usage_label.setText("No game folder selected.")
+            self.usage_label.setText(tr("No game folder selected."))
         self._update_buttons()
 
     def _is_active_game(self) -> bool:
@@ -342,14 +355,14 @@ class StorageManagerDialog(QDialog):
         self.clear_screenshots_button.setEnabled(self._folder is not None)
         active = self._is_active_game()
         self.delete_game_button.setEnabled(self._folder is not None and not active)
-        self.delete_game_button.setToolTip("Open another game before deleting this game's data." if active else "")
+        self.delete_game_button.setToolTip(tr("Open another game before deleting this game's data.") if active else "")
 
     def _delete_point(self) -> None:
         item = self.point_list.currentItem()
         if self._folder is None or item is None:
             return
         answer = QMessageBox.question(
-            self, "Delete save point", f'Delete the save point "{item.text()}"? Shared screenshots, references, current progress, and review history will remain.',
+            self, tr("Delete save point"), tr('Delete the save point "{name}"? Shared screenshots, references, current progress, and review history will remain.', name=item.text()),
             QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel,
         )
         if answer != QMessageBox.Yes:
@@ -358,13 +371,13 @@ class StorageManagerDialog(QDialog):
             self.folder_store.delete_point(self._folder, item.data(Qt.UserRole))
             self._refresh()
         except _STORAGE_ERRORS as exc:
-            QMessageBox.warning(self, "Save point was not deleted", str(exc))
+            QMessageBox.warning(self, tr("Save point was not deleted"), localize_error(str(exc)))
 
     def _clear_screenshots(self) -> None:
         if self._folder is None:
             return
         answer = QMessageBox.question(
-            self, "Clear all board screenshots", CLEAR_SCREENSHOTS_WARNING,
+            self, tr("Clear all board screenshots"), tr(CLEAR_SCREENSHOTS_WARNING),
             QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel,
         )
         if answer != QMessageBox.Yes:
@@ -375,13 +388,13 @@ class StorageManagerDialog(QDialog):
             self._refresh()
             self.screenshotsCleared.emit(str(folder))
         except _STORAGE_ERRORS as exc:
-            QMessageBox.warning(self, "Screenshots were not cleared", str(exc))
+            QMessageBox.warning(self, tr("Screenshots were not cleared"), localize_error(str(exc)))
 
     def _delete_game(self) -> None:
         if self._folder is None or self._is_active_game():
             return
         answer = QMessageBox.question(
-            self, "Delete game data", DELETE_GAME_WARNING,
+            self, tr("Delete game data"), tr(DELETE_GAME_WARNING),
             QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel,
         )
         if answer != QMessageBox.Yes:
@@ -390,7 +403,7 @@ class StorageManagerDialog(QDialog):
         try:
             self.folder_store.delete_folder(folder)
         except _STORAGE_ERRORS as exc:
-            QMessageBox.warning(self, "Game data was not deleted", str(exc))
+            QMessageBox.warning(self, tr("Game data was not deleted"), localize_error(str(exc)))
             return
         self.game_combo.removeItem(self.game_combo.currentIndex())
         self._game_changed(self.game_combo.currentIndex())

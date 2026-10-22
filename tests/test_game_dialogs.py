@@ -15,6 +15,7 @@ from vasl_ai_bridge.game_dialogs import (
     CLEAR_SCREENSHOTS_WARNING, DELETE_GAME_WARNING, EXPERIENCE_HINT, NewGameDialog,
     OpenGameDialog, SavePointDialog, StorageManagerDialog, format_size,
 )
+from vasl_ai_bridge.i18n import get_language, set_language, tr
 
 
 APP = QApplication.instance() or QApplication(["Game storage dialog tests"])
@@ -63,6 +64,8 @@ class FakeFolderStore:
 
 class GameDialogTests(unittest.TestCase):
     def setUp(self):
+        self.previous_language = get_language()
+        set_language("en")
         self.test_root = Path(__file__).resolve().parents[1] / "runtime" / "game-dialog-tests"
         self.test_root.mkdir(parents=True, exist_ok=True)
         self.temporary = tempfile.TemporaryDirectory(prefix="asl-game-dialog-", dir=self.test_root)
@@ -77,6 +80,7 @@ class GameDialogTests(unittest.TestCase):
         APP.processEvents()
         self.assertTrue(self.root.resolve().is_relative_to(self.test_root.resolve()))
         self.temporary.cleanup()
+        set_language(self.previous_language)
 
     def dialog(self, instance):
         self.dialogs.append(instance)
@@ -280,6 +284,38 @@ class GameDialogTests(unittest.TestCase):
         self.assertEqual("9 bytes", format_size(9))
         self.assertEqual("1.0 KB", format_size(1024))
         self.assertEqual("2.0 GB", format_size(2 * 1024 ** 3))
+
+    def test_chinese_dialogs_preserve_names_that_match_ui_text_and_storage_ids(self):
+        self.store.records[0]["name"] = "New game"
+        self.store.points[0]["name"] = "Current progress"
+        for language in ("zh_CN", "zh_TW"):
+            with self.subTest(language=language):
+                set_language(language)
+                dialog = self.dialog(OpenGameDialog(self.store))
+                self.assertEqual(tr("Open game"), dialog.windowTitle())
+                self.assertEqual("New game", dialog.game_combo.currentText())
+                self.assertEqual(tr("Current progress"), dialog.point_combo.itemText(0))
+                self.assertEqual("Current progress", dialog.point_combo.itemText(1))
+                dialog.point_combo.setCurrentIndex(1)
+                self.assertEqual((self.store.folder, "point-1"), dialog.selection())
+                save = self.dialog(SavePointDialog(self.store.points))
+                save.name_combo.setCurrentIndex(0)
+                self.assertEqual("Current progress", save.point_name())
+                storage = self.dialog(StorageManagerDialog(self.store))
+                self.assertEqual("New game", storage.game_combo.currentText())
+                self.assertEqual("Current progress", storage.point_list.item(0).text())
+
+    def test_chinese_deletion_warning_retains_scope_and_cancel_keeps_data(self):
+        for language in ("zh_CN", "zh_TW"):
+            with self.subTest(language=language):
+                set_language(language)
+                dialog = self.dialog(StorageManagerDialog(self.store))
+                with patch("vasl_ai_bridge.game_dialogs.QMessageBox.question", return_value=QMessageBox.Cancel) as question:
+                    dialog._clear_screenshots()
+                self.assertEqual(tr(CLEAR_SCREENSHOTS_WARNING), question.call_args.args[2])
+                self.assertNotEqual(CLEAR_SCREENSHOTS_WARNING, question.call_args.args[2])
+                self.assertEqual([], self.store.cleared)
+                self.assertEqual(tr("{size} bytes", size=9), format_size(9))
 
 
 if __name__ == "__main__":

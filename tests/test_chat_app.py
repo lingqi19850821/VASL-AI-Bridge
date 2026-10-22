@@ -146,7 +146,8 @@ class RecordingBridge(FakeBridge):
         self.calls.append(("experience_read", matches))
         lessons = []
         if sources[-1]["text"].startswith("RESULT:"):
-            lessons = [{"title": "Road exposure", "lesson": "An exposed road move can draw defensive fire.",
+            lessons = [{"title": "Road exposure", "scope": "general", "scenario_name": "",
+                        "lesson": "An exposed road move can draw defensive fire.",
                         "conditions": "ASL infantry crossing an observed road",
                         "observed_result": sources[-1]["text"], "evidence_kind": "reported_outcome",
                         "source_message_ids": [source]}]
@@ -155,10 +156,6 @@ class RecordingBridge(FakeBridge):
             "lessons": lessons, "processed_message_ids": [item["message_id"] for item in sources],
         })
         self.calls.append(("memory_saved", recorded))
-        if text.endswith(REVIEW_REQUEST):
-            review = self.tool_handler("record_review", {"title": "Review so far", "text": "Review of recorded play; outcome unknown.",
-                                      "source_message_ids": [sources[0]["message_id"], source]})
-            self.calls.append(("review_saved", review))
         return result
 
 
@@ -768,6 +765,31 @@ class ChatAppTests(unittest.TestCase):
         self.assertFalse(self.window.import_reference(unsupported))
         self.assertEqual(self.window.session.references, [])
         self.assertFalse(self.window.library.path.exists())
+
+    def test_import_mislabeled_jpeg_selects_and_saves_a_readable_reference(self):
+        import base64
+        from io import BytesIO
+        import json
+        self.window.new_session()
+        output = BytesIO()
+        with Image.new("RGB", (24, 16), "blue") as image:
+            image.save(output, "JPEG")
+        original = output.getvalue()
+        source = self.root / "scenario-note.PNG"
+        source.write_bytes(original)
+        self.assertTrue(self.window.import_reference(source))
+        reference = self.window.session.references[0]
+        self.assertEqual(reference.name, source.name)
+        self.assertEqual(reference.content, original)
+        self.assertEqual(self.window.library.selected_references()[0].reference_id, reference.reference_id)
+        saved = self.window.folders.load_point(self.window.game_folder)
+        self.assertEqual(saved.references[0].content, original)
+        reply = self.window._handle_tool("read_reference_image", {"reference_id": reference.reference_id})
+        self.assertEqual(json.loads(reply["contentItems"][0]["text"])["image_representation"], "derived_png_with_exif_orientation")
+        with Image.open(BytesIO(base64.b64decode(reply["contentItems"][1]["imageUrl"].partition(",")[2]))) as image:
+            self.assertEqual(image.format, "PNG")
+            self.assertEqual(image.size, (24, 16))
+        self.assertEqual(source.read_bytes(), original)
 
     def _reference_removal_sources(self):
         self.window.new_session()
@@ -1447,24 +1469,37 @@ class ChatAppTests(unittest.TestCase):
         self.assertFalse((self.root / "sessions").exists())
         self.assertEqual(self.window.memory.pending_message_ids(self.window.session, {"game_folder": self.window.game_folder}), [])
 
-    def test_review_midgame_preserves_draft_and_can_continue_after_durable_review(self):
+    def test_unavailable_review_preserves_game_draft_memory_and_starts_no_request(self):
         def factory(*args, **kwargs):
             bridge = RecordingBridge(*args, **kwargs)
             self.bridges.append(bridge)
             return bridge
         self.window.bridge_factory = factory
-        self.send("Deployment on turn one")
+        bridge = self.send("RESULT: A squad was pinned crossing the road.")
         self.finish("Initial plan")
         game_id = self.window.session.session_id
+        messages = [(message.message_id, message.role, message.text, message.status)
+                    for message in self.window.session.messages]
+        calls = list(bridge.calls)
         self.window.message_edit.setPlainText("Unsent next move")
         self.window.attachments = [screenshot("red")]
+        attachments = list(self.window.attachments)
         self.window.review_game()
-        self.wait_for(lambda: bool(self.window._active_turn) and not self.window.commands)
+        self.window._start_turn(REVIEW_REQUEST, [], review=True)
+        self.assertFalse(self.window._active_turn)
+        self.assertFalse(self.window.commands)
+        self.assertEqual(bridge.calls, calls)
+        self.assertEqual([(message.message_id, message.role, message.text, message.status)
+                          for message in self.window.session.messages], messages)
+        self.assertTrue(self.window.review_button.isHidden())
+        self.assertFalse(self.window.review_button.isEnabled())
+        self.assertIn("temporarily unavailable", self.window.status.text())
         self.assertEqual(self.window.message_edit.toPlainText(), "Unsent next move")
-        self.assertEqual(len(self.window.attachments), 1)
-        review = next(call[1] for call in self.bridges[-1].calls if call[0] == "review_saved")
-        self.assertFalse(review["game_ended"])
-        self.finish("So far, the outcome is unknown.")
+        self.assertEqual(self.window.attachments, attachments)
+        history = self.window._handle_tool("read_game_history", {"limit": 2})
+        self.assertEqual(len(history["messages"]), 2)
+        lessons = self.window._handle_tool("search_experience", {"query": "road"})
+        self.assertIn("Road exposure", str(lessons))
         self.assertEqual(self.window.session.save_report, "")
         self.send("Continue the same game")
         self.finish("Next action")

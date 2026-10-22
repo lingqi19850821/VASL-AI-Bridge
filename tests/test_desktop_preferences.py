@@ -18,6 +18,7 @@ from PIL import Image
 from vasl_ai_bridge.capture import prepare_image
 from vasl_ai_bridge.chat_session import ChatMessage
 from vasl_ai_bridge.chat_widgets import ChatInput, MessageBubble, chat_font, preferred_font_family, ui_font
+from vasl_ai_bridge.i18n import get_language, set_language, tr
 from vasl_ai_bridge.preferences import AppPreferences, load_preferences, save_preferences
 from vasl_ai_bridge.settings_dialog import SettingsDialog
 from vasl_ai_bridge.voice import VoiceConfig, VoiceError
@@ -27,6 +28,44 @@ APP = QApplication.instance() or QApplication(["ASL_AI isolated desktop preferen
 
 
 class PreferenceTests(unittest.TestCase):
+    def test_interface_language_roundtrip_preserves_other_preferences(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = str(Path(temporary) / "settings.ini")
+            for language in ("en", "zh_CN", "zh_TW"):
+                with self.subTest(language=language):
+                    writer = QSettings(path, QSettings.Format.IniFormat)
+                    expected = AppPreferences(voice_program_path="C:/Local Voice/whisper-cli.exe",
+                                              voice_model_path="D:/Models/ggml-small.bin", ui_language=language)
+                    save_preferences(writer, expected)
+                    reader = QSettings(path, QSettings.Format.IniFormat)
+                    with patch("vasl_ai_bridge.preferences.system_language", side_effect=AssertionError("Saved choice must win")):
+                        self.assertEqual(load_preferences(reader), expected)
+                    self.assertEqual(reader.value("ui_language"), language)
+                    writer, reader = None, None
+
+    def test_first_launch_uses_system_language_without_writing_a_manual_choice(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            settings = QSettings(str(Path(temporary) / "settings.ini"), QSettings.Format.IniFormat)
+            for language in ("en", "zh_CN", "zh_TW"):
+                with self.subTest(language=language), patch("vasl_ai_bridge.preferences.system_language", return_value=language):
+                    self.assertEqual(load_preferences(settings).ui_language, language)
+                    self.assertFalse(settings.contains("ui_language"))
+            settings = None
+
+    def test_invalid_saved_interface_language_falls_back_to_english(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            settings = QSettings(str(Path(temporary) / "settings.ini"), QSettings.Format.IniFormat)
+            settings.setValue("voice_model_path", "D:/Models/keep.bin")
+            for value in ("", "invalid", "zh", False):
+                with self.subTest(value=value):
+                    settings.setValue("ui_language", value)
+                    with patch("vasl_ai_bridge.preferences.system_language", side_effect=AssertionError("Invalid choice has an explicit fallback")):
+                        loaded = load_preferences(settings)
+                    self.assertEqual(loaded.ui_language, "en")
+                    self.assertEqual(loaded.voice_model_path, "D:/Models/keep.bin")
+                    self.assertEqual(loaded.voice_language, "auto")
+            settings = None
+
     def test_preferences_survive_a_new_settings_reader_and_keep_other_keys(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = str(Path(temporary) / "settings.ini")
@@ -110,7 +149,7 @@ class PreferenceTests(unittest.TestCase):
         for kwargs in ({"capture_shortcut": " "}, {"chat_font_size": 9}, {"chat_font_size": 29},
                        {"chat_font_size": True}, {"ui_font_size": 8}, {"chat_font_weight": "light"},
                        {"send_mode": "escape"}, {"voice_backend": "online"}, {"voice_language": "invalid"},
-                       {"voice_model_path": None}):
+                        {"voice_model_path": None}, {"ui_language": "zh"}, {"ui_language": None}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 AppPreferences(**kwargs)
 
@@ -366,6 +405,47 @@ class BubbleTests(unittest.TestCase):
 
 
 class DialogTests(unittest.TestCase):
+    def test_interface_language_selector_uses_autonyms_and_does_not_preview_changes(self):
+        previous_language = get_language()
+        set_language("zh_CN")
+        try:
+            original = AppPreferences(ui_language="zh_CN", voice_program_path="C:/voice.exe")
+            with patch("vasl_ai_bridge.settings_dialog.resolve_voice_config", side_effect=VoiceError("Synthetic local engine status")):
+                dialog = SettingsDialog(original)
+            self.assertEqual([dialog.language_combo.itemText(index) for index in range(dialog.language_combo.count())],
+                             ["English", "简体中文", "繁體中文"])
+            self.assertEqual(dialog.language_combo.currentData(), "zh_CN")
+            before = tr("Settings")
+            self.assertEqual(dialog.windowTitle(), before)
+            dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("zh_TW"))
+            self.assertEqual(dialog.preferences().ui_language, "zh_TW")
+            self.assertEqual(get_language(), "zh_CN")
+            self.assertEqual(tr("Settings"), before)
+            self.assertEqual(dialog.windowTitle(), before)
+            self.assertEqual(dialog.preferences().voice_language, "auto")
+            self.assertEqual(dialog.preferences().voice_program_path, original.voice_program_path)
+            dialog.reject()
+            self.assertEqual(dialog.original, original)
+            self.assertEqual(get_language(), "zh_CN")
+            dialog.deleteLater()
+        finally:
+            set_language(previous_language)
+
+    def test_accepting_language_choice_returns_it_without_applying_globally(self):
+        previous_language = get_language()
+        set_language("en")
+        try:
+            with patch("vasl_ai_bridge.settings_dialog.resolve_voice_config", side_effect=VoiceError("Synthetic local engine status")):
+                dialog = SettingsDialog(AppPreferences())
+            dialog.language_combo.setCurrentIndex(dialog.language_combo.findData("zh_TW"))
+            dialog._accept_preferences()
+            self.assertEqual(dialog.result(), QDialog.DialogCode.Accepted)
+            self.assertEqual(dialog.preferences().ui_language, "zh_TW")
+            self.assertEqual(get_language(), "en")
+            dialog.deleteLater()
+        finally:
+            set_language(previous_language)
+
     def test_opening_and_cancelling_does_not_change_preferences(self):
         original = AppPreferences("Mouse5", 16, "bold", 12, "ctrl_enter", "whisper_cpp", "C:/voice.exe", "D:/voice.bin", "auto")
         dialog = SettingsDialog(original)

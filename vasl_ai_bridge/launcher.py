@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import ctypes
+from configparser import ConfigParser, Error as ConfigError
 import importlib
 import os
 from pathlib import Path
 import sys
 
 from . import APP_NAME
+from .translations_startup import TRANSLATIONS as _STARTUP_TRANSLATIONS
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 # Only fixed application filenames may appear in a shareable diagnostic. An
@@ -23,6 +25,8 @@ _DIAGNOSTIC_FILES = frozenset({
     "session.py", "settings_dialog.py", "storage.py", "voice.py",
     "voice_worker.py", "whisper_cpp_native_worker.py", "whisper_desktop_worker.py",
     "window_activation.py",
+    "i18n.py", "translations_app.py", "translations_settings.py", "translations_widgets.py",
+    "translations_errors.py", "translations_startup.py",
 })
 _ERROR_CATEGORIES = (
     (ImportError, "ImportError"), (ModuleNotFoundError, "ModuleNotFoundError"),
@@ -109,30 +113,76 @@ def _startup_diagnostic(error: BaseException) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _show_error(message: str) -> None:
+def _startup_data_root() -> Path:
+    local = os.environ.get("LOCALAPPDATA")
+    return Path(local) / "ASL_AI" if local else Path.home() / ".asl_ai"
+
+
+def _system_startup_language() -> str:
+    """Read the Windows user's UI language without importing Qt or app modules."""
+    if os.name != "nt":
+        return "en"
+    try:
+        get_language = ctypes.windll.kernel32.GetUserDefaultUILanguage
+        get_language.restype = ctypes.c_ushort
+        language_id = get_language()
+    except (AttributeError, OSError, TypeError, ValueError):
+        return "en"
+    return {
+        0x0804: "zh_CN", 0x1004: "zh_CN",  # China, Singapore
+        0x0404: "zh_TW", 0x0C04: "zh_TW", 0x1404: "zh_TW",  # Taiwan, Hong Kong, Macao
+    }.get(language_id, "en")
+
+
+def _startup_language() -> str:
+    """Honor a saved UI choice even when Qt or application imports have failed."""
+    try:
+        settings = ConfigParser(interpolation=None)
+        with (_startup_data_root() / "settings.ini").open(encoding="utf-8-sig") as stream:
+            settings.read_file(stream)
+        if settings.has_option("General", "ui_language"):
+            language = settings.get("General", "ui_language")
+            return language if language in {"en", "zh_CN", "zh_TW"} else "en"
+    except FileNotFoundError:
+        pass
+    except (ConfigError, OSError, RuntimeError, UnicodeError, ValueError):
+        return "en"
+    return _system_startup_language()
+
+
+def _startup_text(source: str, language: str, **values: str) -> str:
+    pair = _STARTUP_TRANSLATIONS.get(source)
+    translated = pair[0 if language == "zh_CN" else 1] if pair and language in {"zh_CN", "zh_TW"} else source
+    return translated.format(**values)
+
+
+def _show_error(message: str, *, language: str | None = None) -> None:
     if os.name == "nt":
-        ctypes.windll.user32.MessageBoxW(None, message, f"{APP_NAME} startup error", 0x10)
+        title = _startup_text("{app_name} startup error", language or _startup_language(), app_name=APP_NAME)
+        ctypes.windll.user32.MessageBoxW(None, message, title, 0x10)
     elif sys.stderr is not None:
         sys.stderr.write(message + "\n")
 
 
 def _report_startup_error(error: Exception) -> None:
+    language = _startup_language()
     local = os.environ.get("LOCALAPPDATA")
     display_path = r"%LOCALAPPDATA%\ASL_AI\startup-error.log" if local else "~/.asl_ai/startup-error.log"
     try:
-        root = Path(local) / "ASL_AI" if local else Path.home() / ".asl_ai"
+        root = _startup_data_root()
         log_path = root / "startup-error.log"
         root.mkdir(parents=True, exist_ok=True)
         log_path.write_text(_startup_diagnostic(error), encoding="utf-8")
-        details = "A privacy-filtered diagnostic was saved locally to:\n" + display_path
-        details += "\n\nYou can share the diagnostic manually when reporting the problem."
+        details = _startup_text("A privacy-filtered diagnostic was saved locally to:\n{path}", language, path=display_path)
+        details += "\n\n" + _startup_text("You can share the diagnostic manually when reporting the problem.", language)
     except (OSError, RuntimeError, ValueError):
-        details = "The startup diagnostic could not be saved."
+        details = _startup_text("The startup diagnostic could not be saved.", language)
     _show_error(
-        f"{APP_NAME} could not start.\n\n"
-        + "Error category: " + _error_category(error)
+        _startup_text("{app_name} could not start.", language, app_name=APP_NAME) + "\n\n"
+        + _startup_text("Error category: {category}", language, category=_error_category(error))
         + "\n\n"
-        + details
+        + details,
+        language=language,
     )
 
 

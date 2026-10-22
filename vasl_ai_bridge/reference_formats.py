@@ -60,15 +60,14 @@ def reference_capabilities(name: str) -> dict[str, bool | str]:
 
 def _open_reference_image(name: str, content: bytes) -> Image.Image:
     """Fully decode a static supported image before returning it to a reader."""
-    expected = IMAGE_REFERENCE_FORMATS.get(PurePath(name).suffix.lower())
-    if expected is None:
+    if PurePath(name).suffix.lower() not in IMAGE_REFERENCE_SUFFIXES:
         raise ReferenceTextError("Image reading supports PNG, JPEG, WebP, and BMP references only.")
     if len(content) > MAX_REFERENCE_IMAGE_BYTES:
         raise ReferenceTextError("The reference image exceeds the 24 MiB image limit.")
     try:
         with Image.open(BytesIO(content)) as checked:
-            if checked.format != expected:
-                raise ReferenceTextError("The reference image contents do not match its file extension.")
+            if checked.format not in IMAGE_REFERENCE_FORMATS.values():
+                raise ReferenceTextError("The reference image contains an unsupported format. Use PNG, JPEG, WebP, or BMP.")
             width, height = checked.size
             if (width < 1 or height < 1 or max(width, height) > MAX_REFERENCE_IMAGE_DIMENSION
                     or width * height > MAX_REFERENCE_IMAGE_PIXELS):
@@ -78,8 +77,10 @@ def _open_reference_image(name: str, content: bytes) -> Image.Image:
             checked.verify()
         with Image.open(BytesIO(content)) as image:
             image.load()
-            # Detach from the input buffer while preserving EXIF orientation.
-            return image.copy()
+            # Retain the detected format and EXIF data after detaching the buffer.
+            decoded = image.copy()
+            decoded.format = image.format
+            return decoded
     except ReferenceTextError:
         raise
     except (OSError, ValueError, SyntaxError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
@@ -94,11 +95,8 @@ def validate_reference_import(name: str, content: bytes) -> None:
         raise ReferenceTextError("The reference exceeds the 64 MiB import limit.")
     suffix = PurePath(name).suffix.lower()
     if suffix in IMAGE_REFERENCE_SUFFIXES:
-        if suffix == ".png":
-            with _open_reference_image(name, content):
-                return
         # A compressed source can decode correctly yet exceed the transport
-        # limit after PNG conversion. Reject it before creating library data.
+        # limit after PNG conversion, even when its filename ends in .png.
         render_reference_image(name, content)
         return
     from .reference_text import _pdf, extract_document
@@ -114,7 +112,7 @@ def validate_reference_import(name: str, content: bytes) -> None:
 def render_reference_image(name: str, content: bytes) -> str:
     """Return exact PNG originals or an oriented PNG derived from another image."""
     with _open_reference_image(name, content) as image:
-        if PurePath(name).suffix.lower() == ".png":
+        if image.format == "PNG":
             png = content
         else:
             oriented = ImageOps.exif_transpose(image)

@@ -30,6 +30,7 @@ from .game_folders import GameFolderStore
 from .game_memory import MEMORY_TOOL_NAMES, MemoryService
 from .game_dialogs import NewGameDialog, OpenGameDialog, SavePointDialog, StorageManagerDialog
 from .hotkey import GlobalCaptureHotkey, native_shortcut
+from .i18n import localize_error, localize_widget_tree, set_language, tr
 from .preferences import AppPreferences, load_preferences, save_preferences
 from .reference_library import ReferenceLibrary
 from .reference_formats import REFERENCE_FILE_FILTER, is_supported_reference, reference_capabilities
@@ -66,7 +67,7 @@ record_review and any supported candidate lessons with record_turn_memory. Do no
 invent a winner or unseen outcome. Respond in the language of my recent ordinary chat.
 """
 
-RUNTIME_TOOLS_VERSION = 3
+RUNTIME_TOOLS_VERSION = 4
 
 
 def inspect_observation(parent: QWidget, observation: Observation) -> QDialog:
@@ -78,6 +79,7 @@ def inspect_observation(parent: QWidget, observation: Observation) -> QDialog:
     dialog.setWindowTitle("Screenshot - original size")
     layout = QVBoxLayout(dialog)
     details = QLabel(f"{observation.source}\n{observation.captured_at} | {observation.width} x {observation.height}")
+    details.setProperty("i18n_skip", True)
     details.setTextFormat(Qt.TextFormat.PlainText)
     layout.addWidget(details)
     scroll = QScrollArea()
@@ -88,6 +90,7 @@ def inspect_observation(parent: QWidget, observation: Observation) -> QDialog:
     screen = parent.screen().availableGeometry()
     dialog.resize(min(pixmap.width() + 60, int(screen.width() * .85)),
                   min(pixmap.height() + 130, int(screen.height() * .85)))
+    localize_widget_tree(dialog)
     dialog.show()
     return dialog
 
@@ -126,19 +129,21 @@ class ImagePanel(QGroupBox):
         return inspect_observation(self, self.observation) if self.observation else None
 
     def set_observation(self, observation: Observation | None) -> None:
+        self.image.setToolTip(tr("Double-click to inspect the screenshot at its original size."))
         self.observation = observation
         if observation is None:
             self._pixmap = None
             self.image.clear()
-            self.image.setText("No screenshot yet")
-            self.details.setText("Capture a window, then attach the screenshot to a message.")
+            self.image.setText(tr("No screenshot yet"))
+            self.details.setText(tr("Capture a window, then attach the screenshot to a message."))
             return
         pixmap = QPixmap()
         if not pixmap.loadFromData(observation.png, "PNG"):
             raise ValueError("The screenshot could not be displayed.")
         self._pixmap = pixmap
         self._fit()
-        self.details.setText(f"Local preview\n{observation.source} | {observation.captured_at}")
+        self.details.setText(tr("Local preview\n{source} | {captured_at}",
+                                source=observation.source, captured_at=observation.captured_at))
 
     def _fit(self) -> None:
         if self._pixmap:
@@ -249,6 +254,7 @@ class MainWindow(QMainWindow):
         self.library = ReferenceLibrary(self.store.root)
         self.settings = QSettings(str(self.store.root / "settings.ini"), QSettings.Format.IniFormat)
         self.preferences = load_preferences(self.settings)
+        set_language(self.preferences.ui_language)
         self._model_catalog: dict[str, dict] = {}
         self.voice = voice_factory(directory=self.store.root / "voice-recordings", parent=self)
         self._voice_session_id = ""
@@ -291,6 +297,20 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(850, 620)
         self.setFont(ui_font(self.preferences, self.font()))
         self._build_ui()
+        # Bind fixed chrome before any game records or user window names enter it.
+        for control in (self.model_combo, self.reasoning_combo, self.source_combo):
+            control.setProperty("i18n_skip_items", True)
+        for control in (self.login_button, self.connection_label, self.memory_label,
+                        self.session_label, self.hotkey_label, self.reference_label,
+                        self.voice_button, self.voice_label, self.status,
+                        self.preview_panel.image, self.preview_panel.details):
+            control.setProperty("i18n_skip", True)
+        localize_widget_tree(self)
+        self._refresh_auth_labels()
+        self.memory_label.setText(tr("Tactical notes and shared experience are stored locally."))
+        self.preview_panel.set_observation(None)
+        self._voice_state_changed(self.voice.state)
+        self.notice("Ready. No AI request has been sent.")
         self.memory_changed.connect(self._refresh_memory_status)
         self.memory_failed.connect(self._memory_failed)
         self.voice.state_changed.connect(self._voice_state_changed)
@@ -388,8 +408,10 @@ class MainWindow(QMainWindow):
         self.open_button = self._button("Open...", self.open_session)
         self.open_button.setToolTip("Open a save point. Shared experience learned later is kept.")
         self.review_button = self._button("Review game", self.review_game)
+        self.review_button.hide()
+        self.review_button.setEnabled(False)
         self.storage_button = self._button("Games and storage...", self.manage_storage)
-        for button in (self.new_button, self.save_button, self.save_report_button, self.open_button, self.review_button):
+        for button in (self.new_button, self.save_button, self.save_report_button, self.open_button):
             toolbar.addWidget(button)
         toolbar.addStretch()
         game_layout.addLayout(toolbar)
@@ -426,7 +448,7 @@ class MainWindow(QMainWindow):
         self.hotkey_label.setTextFormat(Qt.TextFormat.PlainText)
         hotkey_row.addWidget(self.hotkey_label, 1)
         capture_layout.addLayout(hotkey_row)
-        hint = QLabel(f"In {APP_NAME}, the shortcut works like Capture and select. In the selected board window, it freezes the visible image before opening selection. Previews and attachments stay local until Send.")
+        hint = QLabel("In VASL AI Bridge, the shortcut works like Capture and select. In the selected board window, it freezes the visible image before opening selection. Previews and attachments stay local until Send.")
         hint.setWordWrap(True)
         capture_layout.addWidget(hint)
         left_layout.addWidget(capture_box)
@@ -507,7 +529,8 @@ class MainWindow(QMainWindow):
         if self.save_error:
             text += "\nLocal save warning: " + self.save_error
             error = True
-        self.status.setText(text)
+        self._notice_source = text
+        self.status.setText(localize_error(text))
         self.status.setStyleSheet("color: #9b302b;" if error else "color: #245441;")
 
     def _set_auth_state(self, state: str) -> None:
@@ -525,23 +548,27 @@ class MainWindow(QMainWindow):
             self.reasoning_combo.blockSignals(True)
             self.reasoning_combo.clear()
             self.reasoning_combo.blockSignals(False)
-        else:
-            self.model_combo.setPlaceholderText("Choose a model")
-        self.login_button.setText({
+        self._refresh_auth_labels()
+        self.update_controls()
+
+    def _refresh_auth_labels(self) -> None:
+        """Refresh presentation without changing authentication or model choices."""
+        state = self._auth_state
+        self.model_combo.setPlaceholderText(tr("Choose a model") if state == "signed_in" else "")
+        self.login_button.setText(tr({
             "signed_in": "Sign out",
             "waiting": "Cancel sign-in",
             "cancelling": "Cancelling sign-in...",
             "signing_out": "Signing out...",
-        }.get(state, "Sign in with ChatGPT"))
-        self.connection_label.setText({
+        }.get(state, "Sign in with ChatGPT")))
+        self.connection_label.setText(localize_error({
             "signed_out": "Not signed in. Sign in with ChatGPT to send messages.",
             "waiting": "Waiting for ChatGPT sign-in in your browser. If you closed the page, click Cancel sign-in to try again.",
             "cancelling": "Cancelling ChatGPT sign-in...",
             "signed_in": "Signed in with ChatGPT. Requests use your account's Codex allowance.",
             "signing_out": f"Signing out of {APP_NAME}. Your local game is retained.",
             "disconnected": "Connection interrupted. Sign in with ChatGPT again; your local game is retained.",
-        }[state])
-        self.update_controls()
+        }[state]))
 
     def _check_connection(self) -> None:
         if self._closing or not self.bridge or self.commands or self.monitor or self.busy:
@@ -653,7 +680,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "memory_label"):
             return
         if self._last_memory_error:
-            self.memory_label.setText("Memory was not saved: " + self._last_memory_error)
+            self.memory_label.setText(tr("Memory was not saved: {error}", error=localize_error(self._last_memory_error)))
             return
         try:
             context = dict(self._memory_context)
@@ -663,10 +690,11 @@ class MainWindow(QMainWindow):
             catalog = self.memory.catalog(self.session, context)
             pending = catalog["pending_message_ids"]
             self.memory_label.setText(
-                f"Memory: {len(pending)} message(s) waiting to be recorded."
-                if pending else f"Memory: {catalog['journal_entries']} notes; {catalog['shared_lesson_count']} shared lessons.")
+                tr("Memory: {count} message(s) waiting to be recorded.", count=len(pending))
+                if pending else tr("Memory: {notes} notes; {lessons} shared lessons.",
+                                   notes=catalog['journal_entries'], lessons=catalog['shared_lesson_count']))
         except (OSError, ValueError, StorageError) as exc:
-            self.memory_label.setText("Memory could not be read: " + str(exc))
+            self.memory_label.setText(tr("Memory could not be read: {error}", error=localize_error(str(exc))))
 
     def _memory_prompt(self) -> str:
         context = dict(self._memory_context)
@@ -699,20 +727,20 @@ class MainWindow(QMainWindow):
         if not model or not catalog:
             self.reasoning_combo.blockSignals(False)
             return
-        default_label = "Model default" + (f" ({reasoning_effort_label(default)})" if default else "")
+        default_label = tr("Model default") + (f" ({tr(reasoning_effort_label(default))})" if default else "")
         self.reasoning_combo.addItem(default_label, "")
         for effort in supported_reasoning_efforts(catalog):
-            self.reasoning_combo.addItem(reasoning_effort_label(effort), effort)
+            self.reasoning_combo.addItem(tr(reasoning_effort_label(effort)), effort)
             self.reasoning_combo.setItemData(self.reasoning_combo.count() - 1,
-                                            reasoning_effort_description(catalog, effort),
+                                            localize_error(reasoning_effort_description(catalog, effort)),
                                             Qt.ItemDataRole.ToolTipRole)
         index = self.reasoning_combo.findData(chosen)
         if chosen and index < 0:
-            self.reasoning_combo.addItem(f"{reasoning_effort_label(chosen)} (unavailable)", chosen)
+            self.reasoning_combo.addItem(tr("{effort} (unavailable)", effort=tr(reasoning_effort_label(chosen))), chosen)
             index = self.reasoning_combo.count() - 1
         self.reasoning_combo.setCurrentIndex(max(0, index))
         self.reasoning_combo.blockSignals(False)
-        self.reasoning_combo.setToolTip("Choose a reasoning effort supported by this model for the current sign-in.")
+        self.reasoning_combo.setToolTip(tr("Choose a reasoning effort supported by this model for the current sign-in."))
 
     def _model_selection_changed(self, *args) -> None:
         self._populate_reasoning_choices()
@@ -905,7 +933,7 @@ class MainWindow(QMainWindow):
         previous = self.source_combo.currentData()
         self.source_combo.blockSignals(True)
         self.source_combo.clear()
-        self.source_combo.addItem("Choose a VASL / VASSAL window", None)
+        self.source_combo.addItem(tr("Choose a VASL / VASSAL window"), None)
         try:
             for source in list_windows():
                 self.source_combo.addItem(source.title, source)
@@ -957,7 +985,7 @@ class MainWindow(QMainWindow):
         if status.success:
             self._display_capture_shortcut(status.shortcut)
         else:
-            self.hotkey_label.setText(status.message)
+            self.hotkey_label.setText(localize_error(status.message))
         if not status.success:
             self.notice(status.message, True)
 
@@ -1018,20 +1046,38 @@ class MainWindow(QMainWindow):
             self.notice(str(exc) + rollback_error, True)
             return False
         self.preferences = preferences
+        language_changed = preferences.ui_language != previous.ui_language
+        set_language(preferences.ui_language)
+        if language_changed:
+            localize_widget_tree(self)
+            # Screenshot inspectors can belong to a chat bubble, whose stored
+            # message subtree is deliberately excluded from chrome traversal.
+            for dialog in self.findChildren(QDialog):
+                localize_widget_tree(dialog)
+            self._refresh_auth_labels()
+            self._populate_reasoning_choices(self.reasoning_combo.currentData() or "")
+            if self.source_combo.count() and self.source_combo.itemData(0) is None:
+                self.source_combo.setItemText(0, tr("Choose a VASL / VASSAL window"))
+            self.preview_panel.set_observation(self.preview_panel.observation)
+            self._render_attachments()
+            self._voice_state_changed(self.voice.state)
+            self._refresh_memory_status()
         self.setFont(ui_font(preferences, self.font()))
         self.message_edit.apply_preferences(preferences)
         for bubble in self._message_widgets.values():
             bubble.apply_preferences(preferences)
+        if language_changed:
+            self.render_session()
         self._display_capture_shortcut(shortcut)
-        self.notice("Settings saved. " + self.message_edit.toolTip())
+        self.notice(tr("Settings saved. {detail}", detail=self.message_edit.toolTip()))
         return True
 
     def _display_capture_shortcut(self, shortcut: str) -> None:
         if not shortcut:
-            self.hotkey_label.setText("Capture shortcut: Disabled")
+            self.hotkey_label.setText(tr("Capture shortcut: Disabled"))
             return
-        suffix = "" if self.capture_hotkey else " (unavailable in this session)"
-        self.hotkey_label.setText("Capture shortcut: " + shortcut + suffix)
+        suffix = "" if self.capture_hotkey else tr(" (unavailable in this session)")
+        self.hotkey_label.setText(tr("Capture shortcut: {shortcut}{suffix}", shortcut=shortcut, suffix=suffix))
 
     def _restore_capture_shortcut(self, shortcut: str) -> str:
         restored = self.capture_hotkey.replace(shortcut)
@@ -1041,7 +1087,7 @@ class MainWindow(QMainWindow):
         # Unregister clears the binding even if Windows refuses hook cleanup,
         # so the remaining callback cannot consume another key or mouse event.
         self.capture_hotkey.unregister()
-        self.hotkey_label.setText("Capture shortcut disabled. Open Settings to retry.")
+        self.hotkey_label.setText(tr("Capture shortcut disabled. Open Settings to retry."))
         return " The previous capture binding could not be restored; capture shortcuts are disabled."
 
     def set_capture_shortcut(self, sequence: str) -> bool:
@@ -1147,8 +1193,8 @@ class MainWindow(QMainWindow):
                 item.widget().hide()
                 item.widget().deleteLater()
         for image in self.attachments:
-            self.attachment_layout.addWidget(self._button("Screenshot", lambda checked=False, attached=image: inspect_observation(self, attached)))
-            self.attachment_layout.addWidget(self._button("Remove", lambda checked=False, identifier=image.observation_id: self._remove_attachment(identifier)))
+            self.attachment_layout.addWidget(self._button(tr("Screenshot"), lambda checked=False, attached=image: inspect_observation(self, attached)))
+            self.attachment_layout.addWidget(self._button(tr("Remove"), lambda checked=False, identifier=image.observation_id: self._remove_attachment(identifier)))
         self.attachment_layout.addStretch()
         self.attachment_box.setVisible(bool(self.attachments))
 
@@ -1182,8 +1228,8 @@ class MainWindow(QMainWindow):
         self.notice("Voice input cancelled. Your draft and attachments are retained.")
 
     def _voice_state_changed(self, state: str) -> None:
-        self.voice_button.setText({"recording": "Stop recording", "transcribing": "Transcribing..."}.get(state, "Record voice"))
-        self.voice_label.setText({"recording": "Recording locally", "transcribing": "Local transcription"}.get(state, "Local voice"))
+        self.voice_button.setText(tr({"recording": "Stop recording", "transcribing": "Transcribing..."}.get(state, "Record voice")))
+        self.voice_label.setText(tr({"recording": "Recording locally", "transcribing": "Local transcription"}.get(state, "Local voice")))
         self.update_controls()
 
     def _voice_transcript(self, text: str) -> None:
@@ -1219,6 +1265,9 @@ class MainWindow(QMainWindow):
 
     def _start_turn(self, text: str, attachments: list[Observation], *, report: bool = False,
                     review: bool = False) -> None:
+        if review:
+            self.review_game()
+            return
         mode, key, model = "chatgpt", "", self.model_combo.currentData()
         selected_effort = self.reasoning_combo.currentData() or ""
         if mode == "chatgpt" and self._authenticated_mode != "chatgpt":
@@ -1468,6 +1517,7 @@ class MainWindow(QMainWindow):
             message.status = "interrupted" if interrupted else "failed" if failed else "completed"
             if failed and not interrupted:
                 message.text = (message.text.rstrip() + "\n\n" if message.text else "") + failure.message
+                self.session.legacy_metadata.setdefault("asl_ai_request_failures", {})[message.message_id] = failure.message
         if self._save_requested and not interrupted and not failed and message and message.text.strip():
             self.session.save_report = message.text
             self._report_ready = True
@@ -1492,6 +1542,7 @@ class MainWindow(QMainWindow):
         if message:
             message.status = "failed"
             message.text = (message.text.rstrip() + "\n\n" if message.text else "") + failure.message
+            self.session.legacy_metadata.setdefault("asl_ai_request_failures", {})[message.message_id] = failure.message
         self._preparing, self._active_turn, self._assistant_id = False, "", ""
         self._save_requested = False
         self._review_requested = False
@@ -1544,8 +1595,7 @@ class MainWindow(QMainWindow):
             self._start_turn(SAVE_REQUEST, [], report=True)
 
     def review_game(self) -> None:
-        if not self.busy and not self.commands and self.session.messages:
-            self._start_turn(REVIEW_REQUEST, [], review=True)
+        self.notice("Whole-game review is temporarily unavailable while its usage cost is being optimized. You can still ask about specific recorded events.")
 
     def _choose_game_folder(self, session: ChatSession) -> Path | None:
         parent = Path(str(self.settings.value("game_parent", str(Path.home() / "Documents"))))
@@ -1588,8 +1638,8 @@ class MainWindow(QMainWindow):
                 return None
             name = dialog.point_name()
             exists = any(point["name"].casefold() == name.casefold() for point in points)
-            if exists and QMessageBox.question(self, "Overwrite save point?",
-                    f"Replace '{name}' with the current progress?",
+            if exists and QMessageBox.question(self, tr("Overwrite save point?"),
+                    tr("Replace '{name}' with the current progress?", name=name),
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
                 return None
@@ -1674,7 +1724,7 @@ class MainWindow(QMainWindow):
             self.render_session()
             self._render_attachments()
             self._refresh_memory_status()
-            self.notice("Game opened. Send a message and screenshot to recheck the board; review is available anytime." + library_warning, bool(library_warning))
+            self.notice("Game opened. Send a message and screenshot to recheck the board." + library_warning, bool(library_warning))
             return True
         except (StorageError, OSError, ValueError) as exc:
             self.notice(str(exc), True)
@@ -1749,7 +1799,11 @@ class MainWindow(QMainWindow):
     def add_files(self) -> None:
         if self.busy or self.commands or self.monitor:
             return
-        selected, _ = QFileDialog.getOpenFileNames(self, "Add local rules or references", "", REFERENCE_FILE_FILTER)
+        # Translate filter captions, retaining every supported extension verbatim.
+        file_filter = REFERENCE_FILE_FILTER
+        for caption in ("Supported references", "Documents", "Text files", "Images"):
+            file_filter = file_filter.replace(caption + " (", tr(caption) + " (")
+        selected, _ = QFileDialog.getOpenFileNames(self, tr("Add local rules or references"), "", file_filter)
         for name in selected:
             self.import_reference(Path(name))
 
@@ -1821,9 +1875,9 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.CheckState.Checked if reference.sha256 in hashes else Qt.CheckState.Unchecked)
             item.setData(Qt.ItemDataRole.UserRole, reference.reference_id)
             capabilities = reference_capabilities(reference.name)
-            reader = "Image reader" if capabilities["image_available"] else "Text and page image readers" if capabilities["page_images_available"] else "Text reader" if capabilities["text_supported"] else "Archived original; no supported reader"
-            item.setToolTip(f"{reference.size_bytes:,} bytes | {reader} | Local original preserved" +
-                            (f"\n{reference.extraction_error}" if reference.extraction_error else ""))
+            reader = tr("Image reader" if capabilities["image_available"] else "Text and page image readers" if capabilities["page_images_available"] else "Text reader" if capabilities["text_supported"] else "Archived original; no supported reader")
+            item.setToolTip(tr("{size} bytes | {reader} | Local original preserved", size=f"{reference.size_bytes:,}", reader=reader) +
+                            (f"\n{localize_error(reference.extraction_error)}" if reference.extraction_error else ""))
         layout.addWidget(listing)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         remove_button = buttons.addButton("Remove from library...", QDialogButtonBox.ButtonRole.ActionRole)
@@ -1836,10 +1890,10 @@ class MainWindow(QMainWindow):
             if not items:
                 return
             names = "\n".join(item.text() for item in items)
-            prompt = (f"Remove these {len(items)} file(s) from the library and this game's references?\n\n{names}\n\n"
+            prompt = tr("Remove these {count} file(s) from the library and this game's references?\n\n{names}\n\n"
                       "Your original files on disk will not be changed. "
-                      "Click OK in Reference library to apply the removal, or Cancel to keep everything.")
-            if QMessageBox.question(dialog, "Remove from library?", prompt,
+                      "Click OK in Reference library to apply the removal, or Cancel to keep everything.", count=len(items), names=names)
+            if QMessageBox.question(dialog, tr("Remove from library?"), prompt,
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
                 return
@@ -1853,6 +1907,7 @@ class MainWindow(QMainWindow):
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         dialog.resize(640, 440)
+        localize_widget_tree(dialog)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         identifiers = [listing.item(index).data(Qt.ItemDataRole.UserRole) for index in range(listing.count())
@@ -1889,6 +1944,18 @@ class MainWindow(QMainWindow):
             widget.deleteLater()
         self._message_widgets.clear()
 
+    def _display_message(self, message: ChatMessage) -> str:
+        """Translate application chrome without rewriting chat or model output."""
+        if message.role == "user" and message.text == SAVE_REQUEST:
+            return tr("Prepare a game save report for me to review.")
+        if message.role == "user" and message.text == REVIEW_REQUEST:
+            return tr("Review the game up to the current stopping point.")
+        failures = self.session.legacy_metadata.get("asl_ai_request_failures", {})
+        suffix = failures.get(message.message_id) if isinstance(failures, dict) else None
+        if isinstance(suffix, str) and suffix and message.text.endswith(suffix):
+            return message.text[:-len(suffix)] + localize_error(suffix)
+        return message.text
+
     def render_session(self) -> None:
         bar = self.chat_scroll.verticalScrollBar()
         at_bottom = bar.value() >= bar.maximum() - 30
@@ -1898,10 +1965,7 @@ class MainWindow(QMainWindow):
             if widget is None:
                 widget = MessageBubble(message, self.chat_content, preferences=self.preferences,
                                        inspect_callback=inspect_observation,
-                                       display_text=lambda item: ("Prepare a game save report for me to review."
-                                           if item.role == "user" and item.text == SAVE_REQUEST else
-                                           "Review the game up to the current stopping point."
-                                           if item.role == "user" and item.text == REVIEW_REQUEST else item.text))
+                                        display_text=self._display_message)
                 self._message_widgets[message.message_id] = widget
                 self.chat_layout.addWidget(widget)
             else:
@@ -1909,8 +1973,8 @@ class MainWindow(QMainWindow):
         if at_bottom:
             QTimer.singleShot(0, lambda: bar.setValue(bar.maximum()))
         names = "\n".join(reference.name for reference in self.session.references)
-        self.reference_label.setText(f"Selected for this game: {len(self.session.references)}\n" + (names or "No references selected"))
-        self.session_label.setText(f"Game {self.session.session_id[:8]} | {len(self.session.messages)} messages")
+        self.reference_label.setText(tr("Selected for this game: {count}\n", count=len(self.session.references)) + (names or tr("No references selected")))
+        self.session_label.setText(tr("Game {game_id} | {count} messages", game_id=self.session.session_id[:8], count=len(self.session.messages)))
         self.update_controls()
 
     def update_controls(self, *args) -> None:
@@ -1941,7 +2005,8 @@ class MainWindow(QMainWindow):
         self.attach_button.setEnabled(self.preview is not None)
         self.new_button.setEnabled(not action_busy and not self.voice.active)
         self.open_button.setEnabled(not action_busy and not self.voice.active)
-        self.review_button.setEnabled(not action_busy and not self.voice.active and bool(self.session.messages))
+        self.review_button.hide()
+        self.review_button.setEnabled(False)
         self.storage_button.setEnabled(not action_busy and not self.voice.active)
         self.openai_status_button.setEnabled(not self._closing)
         self.settings_button.setEnabled(not self._closing and not self._selecting_screenshot and not self.voice.active)

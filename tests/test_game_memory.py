@@ -58,16 +58,17 @@ class GameMemoryTests(unittest.TestCase):
     def lesson(self, **changes):
         return {"title": "Covered approach", "lesson": "Consider covered approaches before crossing observed open ground.",
                 "conditions": "Defenders can fire on open ground", "observed_result": "The player reported a failed attack.",
-                "evidence_kind": "reported_outcome", "source_message_ids": [self.user.message_id], **changes}
+                "evidence_kind": "reported_outcome", "source_message_ids": [self.user.message_id],
+                "scope": "general", "scenario_name": "", **changes}
 
     def record(self, **arguments):
         return self.memory.handle_tool(self.game, "record_turn_memory", arguments, context=self.context)
 
-    def read_lesson(self, identifier, *, session=None, context=None):
+    def read_lesson(self, identifier, *, session=None, context=None, **lookup):
         offset, contents = 0, ""
         while offset is not None:
             part = self.memory.handle_tool(session or self.game, "read_experience",
-                                           {"lesson_id": identifier, "offset": offset, "max_chars": 1000},
+                                           {"lesson_id": identifier, "offset": offset, "max_chars": 1000, **lookup},
                                            context=context or self.context)
             contents += part["text"]
             offset = part["next_text_offset"]
@@ -183,6 +184,153 @@ class GameMemoryTests(unittest.TestCase):
         self.assertEqual(lesson["status"], "candidate")
         self.assertEqual(lesson["revisions"][0]["model"], "model-A")
         self.assertEqual(lesson["revisions"][0]["source_evidence"][0]["text_excerpt"], self.user.text)
+
+    def test_scenario_lessons_require_explicit_exact_name_and_cannot_bypass_read_filter(self):
+        general = self.record(lessons=[self.lesson()])["lesson_ids"][0]
+        first = self.record(lessons=[self.lesson(scope="scenario", scenario_name="Retaking Vierville")])["lesson_ids"][0]
+        second = self.record(lessons=[self.lesson(scope="scenario", scenario_name="A Different Scenario")])["lesson_ids"][0]
+        default = self.memory.handle_tool(self.game, "search_experience", {"query": "covered"})
+        self.assertEqual([item["lesson_id"] for item in default["matches"]], [general])
+        self.assertEqual((default["scope"], default["scenario_name"]), ("general", ""))
+        selected = self.memory.handle_tool(self.game, "search_experience", {
+            "query": "covered", "scope": "scenario", "scenario_name": "  RETAKING   vierville  "})
+        self.assertEqual([item["lesson_id"] for item in selected["matches"]], [first])
+        self.assertEqual(selected["matches"][0]["scenario_name"], "Retaking Vierville")
+        self.assertEqual(selected["matches"][0]["scope"], "scenario")
+        self.assertEqual(self.memory.handle_tool(self.game, "search_experience", {
+            "query": "", "scope": "scenario", "scenario_name": "Vierville"})["matches"], [])
+        for arguments in ({"lesson_id": first}, {"lesson_id": first, "scope": "unclassified"},
+                          {"lesson_id": second, "scope": "scenario", "scenario_name": "Retaking Vierville"},
+                          {"lesson_id": general, "scope": "scenario", "scenario_name": "Retaking Vierville"}):
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(GameMemoryError, "requested scope"):
+                self.memory.handle_tool(self.game, "read_experience", arguments)
+        result = self.memory.handle_tool(self.game, "read_experience", {
+            "lesson_id": first, "scope": "scenario", "scenario_name": "retaking vierville", "max_chars": 100})
+        self.assertEqual((result["scope"], result["scenario_name"]), ("scenario", "Retaking Vierville"))
+        restored = self.read_lesson(first, scope="scenario", scenario_name="retaking vierville")
+        self.assertEqual(restored["scenario_name"], "Retaking Vierville")
+        self.assertEqual(restored["revisions"][0]["scope"], "scenario")
+
+    def test_dedup_includes_scope_and_scenario_name_and_preserves_original_spelling(self):
+        general = self.record(lessons=[self.lesson()])["lesson_ids"][0]
+        first = self.record(lessons=[self.lesson(scope="scenario", scenario_name="Retaking Vierville")])["lesson_ids"][0]
+        second = self.record(lessons=[self.lesson(scope="scenario", scenario_name="Another Scenario")])["lesson_ids"][0]
+        equivalent = self.record(lessons=[self.lesson(scope="scenario", scenario_name=" retaking   VIERVILLE ")])["lesson_ids"][0]
+        self.assertEqual(first, equivalent)
+        self.assertEqual(len({general, first, second}), 3)
+        restored = self.read_lesson(first, scope="scenario", scenario_name="Retaking Vierville")
+        self.assertEqual(restored["scenario_name"], "Retaking Vierville")
+        self.assertEqual(len(restored["revisions"]), 1)
+
+    def test_catalog_contains_general_titles_only_and_separate_scope_counts(self):
+        general = self.record(lessons=[self.lesson(title="Transferable consideration")])["lesson_ids"][0]
+        for index in range(12):
+            self.record(lessons=[self.lesson(title=f"Scenario-only title {index}", scope="scenario",
+                                           scenario_name=f"Scenario {index}")])
+        catalog = self.memory.catalog(ChatSession())
+        self.assertEqual(catalog["shared_lesson_count"], 13)
+        self.assertEqual(catalog["lesson_scope_counts"], {"general": 1, "scenario": 12, "unclassified": 0})
+        self.assertEqual([item["lesson_id"] for item in catalog["recent_lessons"]], [general])
+        self.assertEqual(catalog["recent_lessons"][0]["scope"], "general")
+        self.assertNotIn("Scenario-only title", self.memory.prompt_context(ChatSession()))
+
+    def test_new_lessons_reject_missing_or_invalid_classification_without_writes(self):
+        invalid = []
+        for field in ("scope", "scenario_name"):
+            lesson = self.lesson()
+            lesson.pop(field)
+            invalid.append(lesson)
+        invalid.extend(self.lesson(**changes) for changes in (
+            {"scope": "unclassified"}, {"scope": "unknown"}, {"scope": True}, {"scope": None},
+            {"scope": "scenario", "scenario_name": ""}, {"scope": "scenario", "scenario_name": "  "},
+            {"scope": "scenario", "scenario_name": "x" * 201}, {"scenario_name": "Retaking Vierville"},
+            {"scenario_name": None}, {"scenario_name": 1}, {"scenario_id": "ASL-1"},
+        ))
+        for lesson in invalid:
+            with self.subTest(lesson=lesson), self.assertRaises(GameMemoryError):
+                self.record(lessons=[lesson], processed_message_ids=[self.user.message_id])
+        self.assertFalse(self.memory.experience_path.exists())
+        self.assertFalse(self.journal_path().exists())
+        self.assertEqual(self.memory.pending_message_ids(self.game), [self.user.message_id])
+
+    def test_experience_lookup_rejects_invalid_scope_name_combinations_without_writes(self):
+        identifier = self.record(lessons=[self.lesson()])["lesson_ids"][0]
+        before = self.memory.experience_path.read_bytes()
+        for fields in ({"scope": "scenario"}, {"scope": "scenario", "scenario_name": " "},
+                       {"scope": "scenario", "scenario_name": "x" * 201}, {"scope": "unknown"},
+                       {"scope": None}, {"scope": []}, {"scenario_name": "Retaking Vierville"},
+                       {"scope": "unclassified", "scenario_name": "Retaking Vierville"},
+                       {"scope": "scenario", "scenario_name": 1}, {"scenario_id": "ASL-1"}):
+            for tool, arguments in (("search_experience", {"query": "", **fields}),
+                                    ("read_experience", {"lesson_id": identifier, **fields})):
+                with self.subTest(tool=tool, fields=fields), self.assertRaises(GameMemoryError):
+                    self.memory.handle_tool(self.game, tool, arguments)
+        self.assertEqual(self.memory.experience_path.read_bytes(), before)
+
+    def test_revision_cannot_silently_change_scope_or_scenario(self):
+        general = self.record(lessons=[self.lesson()])["lesson_ids"][0]
+        scenario = self.record(lessons=[self.lesson(scope="scenario", scenario_name="Retaking Vierville")])["lesson_ids"][0]
+        before = self.memory.experience_path.read_bytes()
+        for changes in ({"existing_lesson_id": general, "scope": "scenario", "scenario_name": "Retaking Vierville"},
+                        {"existing_lesson_id": scenario},
+                        {"existing_lesson_id": scenario, "scope": "scenario", "scenario_name": "Another Scenario"}):
+            with self.subTest(changes=changes), self.assertRaisesRegex(GameMemoryError, "keep its existing scope"):
+                self.record(lessons=[self.lesson(relationship="revises", **changes)])
+            self.assertEqual(self.memory.experience_path.read_bytes(), before)
+        self.record(lessons=[self.lesson(existing_lesson_id=scenario, scope="scenario", scenario_name="RETAKING vierville",
+                                        relationship="revises", lesson="A corrected scenario-specific consideration.")])
+        revised = self.read_lesson(scenario, scope="scenario", scenario_name="Retaking Vierville")
+        self.assertEqual(revised["lesson"], self.lesson()["lesson"])
+        self.assertEqual(revised["scenario_name"], "Retaking Vierville")
+        self.assertEqual(len(revised["revisions"]), 2)
+
+    def untagged_library(self):
+        identifier = self.record(lessons=[self.lesson()])["lesson_ids"][0]
+        library = json.loads(self.memory.experience_path.read_text(encoding="utf-8"))
+        for item in library["lessons"]:
+            for record in [item, *item["revisions"]]:
+                record.pop("scope")
+                record.pop("scenario_name")
+        raw = json.dumps(library, ensure_ascii=False, indent=1).encode("utf-8")
+        self.memory.experience_path.write_bytes(raw)
+        return identifier, library["lessons"][0], raw
+
+    def test_untagged_records_are_explicit_unclassified_views_without_rewriting_originals(self):
+        identifier, original, before = self.untagged_library()
+        catalog = self.memory.catalog(self.game)
+        self.assertEqual(catalog["lesson_scope_counts"], {"general": 0, "scenario": 0, "unclassified": 1})
+        self.assertEqual(catalog["recent_lessons"], [])
+        self.assertEqual(self.memory.handle_tool(self.game, "search_experience", {"query": ""})["matches"], [])
+        result = self.memory.handle_tool(self.game, "search_experience", {"query": "", "scope": "unclassified"})
+        self.assertEqual(result["matches"][0]["lesson_id"], identifier)
+        self.assertEqual((result["matches"][0]["scope"], result["matches"][0]["scenario_name"]), ("unclassified", ""))
+        with self.assertRaisesRegex(GameMemoryError, "requested scope"):
+            self.read_lesson(identifier)
+        restored = self.read_lesson(identifier, scope="unclassified")
+        self.assertEqual(restored, {**original, "scope": "unclassified", "scenario_name": ""})
+        self.assertEqual(self.memory.experience_path.read_bytes(), before)
+        with self.assertRaisesRegex(GameMemoryError, "keep its existing scope"):
+            self.record(lessons=[self.lesson(existing_lesson_id=identifier)])
+        self.assertEqual(self.memory.experience_path.read_bytes(), before)
+        self.record(lessons=[self.lesson(lesson="A newly classified consideration.")])
+        after = json.loads(self.memory.experience_path.read_text(encoding="utf-8"))
+        self.assertEqual(after["lessons"][0], original)
+        self.assertEqual(after["schema_version"], 1)
+
+    def test_malformed_stored_tags_are_not_guessed_or_overwritten(self):
+        self.record(lessons=[self.lesson()])
+        baseline = json.loads(self.memory.experience_path.read_text(encoding="utf-8"))
+        for changes in ({"scope": "unclassified"}, {"scope": "unsupported"}, {"scope": None},
+                        {"scope": "scenario", "scenario_name": ""}, {"scenario_name": "Retaking Vierville"}):
+            damaged = deepcopy(baseline)
+            damaged["lessons"][0].update(changes)
+            raw = json.dumps(damaged).encode("utf-8")
+            self.memory.experience_path.write_bytes(raw)
+            with self.subTest(changes=changes), self.assertRaises(GameMemoryError):
+                self.memory.catalog(self.game)
+            with self.assertRaises(GameMemoryError):
+                self.record(lessons=[self.lesson()])
+            self.assertEqual(self.memory.experience_path.read_bytes(), raw)
 
     def test_counterexample_and_revision_append_without_erasing_old_statement(self):
         identifier = self.record(lessons=[self.lesson()])["lesson_ids"][0]
@@ -374,7 +522,7 @@ class GameMemoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             handle_game_tool(self.game, "record_turn_memory", {})
         self.assertIn("During every ordinary reply", ASL_INSTRUCTIONS)
-        self.assertIn("including an unfinished game", ASL_INSTRUCTIONS)
+        self.assertIn("Automatic full-game review is temporarily unavailable", ASL_INSTRUCTIONS)
 
     def test_deleted_images_are_explicit_in_original_history_and_lesson_provenance(self):
         image = prepare_image(Image.new("RGB", (8, 8), "blue"), "Synthetic board")

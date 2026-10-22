@@ -355,6 +355,36 @@ class CodexBridgeTests(unittest.TestCase):
         self.assertEqual(message_tool["inputSchema"]["required"], ["message_id"])
         self.assertEqual(message_tool["inputSchema"]["properties"]["max_chars"]["maximum"], 24000)
 
+    def test_lesson_schema_requires_scope_and_actual_scenario_name(self):
+        tools = {tool["name"]: tool for tool in DYNAMIC_TOOLS}
+        lesson = tools["record_turn_memory"]["inputSchema"]["properties"]["lessons"]["items"]
+        self.assertIn("scope", lesson["required"])
+        self.assertIn("scenario_name", lesson["required"])
+        self.assertEqual(lesson["properties"]["scope"]["enum"], ["general", "scenario"])
+        self.assertEqual(lesson["properties"]["scenario_name"]["maxLength"], 200)
+        self.assertNotIn("scenario_id", lesson["properties"])
+        for name in ("search_experience", "read_experience"):
+            properties = tools[name]["inputSchema"]["properties"]
+            self.assertEqual(properties["scope"]["default"], "general")
+            self.assertEqual(properties["scope"]["enum"], ["general", "scenario", "unclassified"])
+            self.assertIn("scenario_name", properties)
+            self.assertNotIn("scenario_id", properties)
+        instructions = " ".join(ASL_INSTRUCTIONS.split())
+        self.assertIn("do not generalize scenario-specific terrain", instructions)
+        self.assertIn("a name only, never a scenario number or identifier", instructions)
+        self.assertIn("Do not invent a title or infer one from an ID", instructions)
+        self.assertIn("excluded by default", instructions)
+
+    def test_prompt_and_tool_descriptions_do_not_request_exhaustive_game_review(self):
+        self.assertIn("Automatic full-game review is temporarily unavailable.", ASL_INSTRUCTIONS)
+        self.assertIn("specific recorded event, decision or bounded excerpt", ASL_INSTRUCTIONS)
+        self.assertIn("Save reports describe the stopping point", ASL_INSTRUCTIONS)
+        self.assertNotIn("Read the complete available chronology", ASL_INSTRUCTIONS)
+        descriptions = " ".join(tool["description"] for tool in DYNAMIC_TOOLS)
+        self.assertNotIn("until null for a complete review", descriptions)
+        self.assertNotIn("all available play through the cited messages", descriptions)
+        self.assertIn("record_review", {tool["name"] for tool in DYNAMIC_TOOLS})
+
     def test_dynamic_tool_callback_rejects_foreign_threads_and_namespaces(self):
         called = []
         self.bridge.tool_handler = lambda name, args: called.append(name) or {"text": "allowed"}

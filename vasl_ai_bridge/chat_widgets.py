@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPush
 
 from .chat_session import ChatMessage
 from .preferences import AppPreferences, SEND_MODES
+from .i18n import get_language, tr
 
 
 def preferred_font_family(base: QFont | None = None) -> str:
@@ -58,9 +59,9 @@ class ChatInput(QPlainTextEdit):
         if mode not in SEND_MODES:
             raise ValueError("Choose a supported message send shortcut.")
         self.send_mode = mode
-        self.setToolTip({"enter": "Enter sends. Shift+Enter adds a new line.",
+        self.setToolTip(tr({"enter": "Enter sends. Shift+Enter adds a new line.",
                          "ctrl_enter": "Ctrl+Enter sends. Enter adds a new line.",
-                         "shift_enter": "Shift+Enter sends. Enter adds a new line."}[mode])
+                         "shift_enter": "Shift+Enter sends. Enter adds a new line."}[mode]))
 
     def apply_preferences(self, preferences: AppPreferences) -> None:
         self.setFont(chat_font(preferences, self.font()))
@@ -118,9 +119,11 @@ class MessageBubble(QWidget):
         layout.setContentsMargins(14, 10, 14, 12)
         layout.setSpacing(7)
         self.heading = QLabel()
+        self.heading.setProperty("i18n_skip", True)
         self.heading.setTextFormat(Qt.TextFormat.PlainText)
         layout.addWidget(self.heading)
         self.text = QLabel()
+        self.text.setProperty("i18n_skip", True)
         self.text.setTextFormat(Qt.TextFormat.PlainText)
         self.text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.text.setWordWrap(True)
@@ -128,7 +131,8 @@ class MessageBubble(QWidget):
         layout.addWidget(self.text)
         self.attachment_buttons = []
         for image in message.attachments:
-            button = QPushButton("Screenshot")
+            button = QPushButton(tr("Screenshot"))
+            button.setProperty("i18n_skip", True)
             pixmap = QPixmap()
             pixmap.loadFromData(image.png, "PNG")
             thumbnail = pixmap.scaled(120, 80, Qt.AspectRatioMode.KeepAspectRatio,
@@ -157,23 +161,25 @@ class MessageBubble(QWidget):
         heading_font.setPointSize(max(10, preferences.chat_font_size - 3))
         heading_font.setWeight(QFont.Weight.Bold)
         self.heading.setFont(heading_font)
+        for button in self.attachment_buttons:
+            button.setText(tr("Screenshot"))
         self._schedule_fit()
         self.updateGeometry()
 
     def update_message(self, message: ChatMessage) -> None:
-        display = (message.role, message.status, message.text, message.created_at)
+        display = (message.role, message.status, message.text, message.created_at, get_language())
         if display == self._last_display:
             return
         self._last_display = display
         self._message = message
-        role = {"user": "You", "assistant": "AI", "system": "Notice", "tool": "Reference"}[message.role]
-        state = "" if message.status == "completed" else f" - {message.status}"
+        role = tr({"user": "You", "assistant": "AI", "system": "Notice", "tool": "Reference"}[message.role])
+        state = "" if message.status == "completed" else f" - {tr(message.status)}"
         timestamp = datetime.fromisoformat(message.created_at.replace("Z", "+00:00")).astimezone().strftime("%H:%M")
         self.heading.setText(f"{role}   {timestamp}{state}")
         text = self._display_text(message) if self._display_text else message.text
         empty_reply = {"pending": "Thinking...", "streaming": "Thinking...",
                        "failed": "Request failed.", "interrupted": "Stopped."}.get(message.status, "Empty reply.")
-        self.text.setText(text or (empty_reply if message.role == "assistant" else "Screenshot"))
+        self.text.setText(text or tr(empty_reply if message.role == "assistant" else "Screenshot"))
         user = message.role == "user"
         self.row_layout.setStretch(0, 1 if user else 0)
         self.row_layout.setStretch(1, 3 if user else 19)

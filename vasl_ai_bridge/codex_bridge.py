@@ -81,18 +81,33 @@ consider pending original player messages and automatically record useful candid
 lessons from reported outcomes/corrections. Use completed player-message IDs as
 evidence; planned success is not a result. Without a new result, no outcome lesson is required.
 Mark processed_message_ids only after considering them, even if no lesson is useful.
-Search shared experience when relevant; fallible lessons cannot override rules or
-fresh evidence. It survives new games/model changes and is not rewound by an earlier
+Every new lesson must include scope (general or scenario) and scenario_name.
+Use general with an empty scenario_name only for a transferable lesson supported
+by the evidence; do not generalize scenario-specific terrain, unit arrangements,
+special rules, victory conditions or timing into general advice. Use scenario for
+such lessons and set scenario_name to the actual scenario title found in supplied
+materials or the player's chat: a name only, never a scenario number or identifier.
+Do not invent a title or infer one from an ID; if the title is unknown, defer that
+scenario lesson until the actual name is available. Keep revisions within the
+existing lesson's scope and scenario name.
+Search shared experience when relevant. Searches and direct reads default to
+general lessons; explicitly request scope scenario and the exact actual scenario
+name to consult lessons for the current scenario. Legacy unclassified lessons are
+excluded by default and require an explicit unclassified request; they are not
+general advice. Fallible lessons cannot override rules or fresh evidence.
+Shared experience survives new games/model changes and is not rewound by an earlier
 save point; current game history and journal follow that point's visible record.
 Journals are local plaintext without encryption or anti-cheat controls.
 
 Save reports describe the stopping point and uncertainty for player review; they
-do not prove actions happened or restore the VASL board. Review is allowed anytime,
-including an unfinished game. Read the complete available chronology, screenshots and journal
-in bounded chunks, cite source IDs, and separate decisions, execution, rule errors,
-opponent reactions and dice. Distinguish recorded intent from retrospective
-interpretation, not hidden reasoning. Never invent past intent, a winner or unseen
-outcome. State the review endpoint, save with record_review, then allow continued play.
+do not prove actions happened or restore the VASL board.
+Automatic full-game review is temporarily unavailable.
+Do not begin an exhaustive whole-game history sweep.
+You may discuss a player's specific recorded event, decision or bounded excerpt
+on request. Read only relevant original chat, screenshots and journal evidence,
+cite source IDs, and distinguish recorded intent from retrospective interpretation,
+not hidden reasoning. Never invent past intent, a winner or an unseen outcome.
+Such discussion does not end the game; ordinary play and Save remain available.
 Use only application-provided history/reference/bounded memory tools. Do not execute
 commands, browse the computer, install anything or edit arbitrary files; memory tools
 are the only permitted writes. Never claim a failed memory write succeeded.
@@ -122,13 +137,22 @@ _MEMORY_INTENT = {
 _MEMORY_LESSON = {
     "type": "object", "additionalProperties": False,
     "properties": {"title": {"type": "string", "maxLength": 200},
+                   "scope": {"type": "string", "enum": ["general", "scenario"]},
+                   "scenario_name": {"type": "string", "maxLength": 200,
+                                     "description": "Actual scenario title from supplied materials or player chat, never an ID. Required and nonempty for scenario scope; use an empty string for general scope."},
                    **{field: {"type": "string", "maxLength": 3000} for field in
                       ("lesson", "conditions", "observed_result")},
                    "evidence_kind": {"type": "string", "enum": ["reported_outcome", "reported_correction"]},
                    "source_message_ids": _MEMORY_IDS, "journal_entry_ids": _MEMORY_IDS,
                    "existing_lesson_id": {"type": "string", "maxLength": 128},
                    "relationship": {"type": "string", "enum": ["supports", "contradicts", "revises"]}},
-    "required": ["title", "lesson", "observed_result", "evidence_kind", "source_message_ids"],
+    "required": ["title", "scope", "scenario_name", "lesson", "observed_result", "evidence_kind", "source_message_ids"],
+}
+_EXPERIENCE_FILTER = {
+    "scope": {"type": "string", "enum": ["general", "scenario", "unclassified"], "default": "general",
+              "description": "General lessons by default. Explicit scenario scope requires the actual scenario name; unclassified is only for deliberately inspecting legacy records."},
+    "scenario_name": {"type": "string", "maxLength": 200,
+                      "description": "Actual scenario title, not an identifier. Required and nonempty with scenario scope; omit or leave empty for general or unclassified scope."},
 }
 DYNAMIC_TOOLS = [
     _function("search_game_history", "Search original local game chat. Results include message IDs and image IDs. Use read_game_history or read_game_image for original evidence.",
@@ -136,7 +160,7 @@ DYNAMIC_TOOLS = [
     _function("read_game_history", "Read an original chronological chunk of the game's complete chat archive, including image IDs. Use a message_id with surrounding messages, or a zero-based offset.",
               {"offset": {"type": "integer", "minimum": 0}, "limit": _LIMIT,
                "message_id": _STRING, "surrounding": {"type": "integer", "minimum": 0, "maximum": 20}}, []),
-    _function("read_game_message", "Read the original text of one archived message, with pagination for long messages. Continue using next_text_offset until it is null. Image IDs can be viewed with read_game_image.",
+    _function("read_game_message", "Read a bounded excerpt of one archived message, with pagination for relevant longer text. Image IDs can be viewed with read_game_image. Retrieve only the evidence needed for the current question.",
               {"message_id": _STRING, "offset": {"type": "integer", "minimum": 0},
                "max_chars": {"type": "integer", "minimum": 1, "maximum": 24000}},
               ["message_id"]),
@@ -152,20 +176,20 @@ DYNAMIC_TOOLS = [
     _function("read_reference_image", "View a selected PNG, JPEG, WebP, or BMP reference, or a PDF page. Use its opaque reference ID; PDF page numbers start at 1 and default to 1. Useful for Order of Battle, scenario Notes, tables, diagrams, and scans. In code mode, the result is a string: forward each data-image URL using image(url), rather than text(result).",
               {"reference_id": _STRING, "page": {"type": "integer", "minimum": 1}},
               ["reference_id"]),
-    _function("record_turn_memory", "Append current tactical intent and evidence-backed candidate lessons to local plaintext memory during ordinary play. The application supplies identity and time. Do not fabricate results, prior intent, model metadata, or paths. Repeated identical source/content is idempotent. This is not an end-game action.",
+    _function("record_turn_memory", "Append current tactical intent and evidence-backed candidate lessons during ordinary play. Every lesson requires scope general or scenario and scenario_name: empty for general, the actual supplied scenario title for scenario. Never turn scenario-specific observations into unsupported general advice or invent a scenario name. The application supplies identity and time; do not fabricate results, prior intent, model metadata, or paths. Repeated identical source/content is idempotent. This is not an end-game action.",
               {"intents": {"type": "array", "items": _MEMORY_INTENT, "maxItems": 12},
                "lessons": {"type": "array", "items": _MEMORY_LESSON, "maxItems": 12},
                "processed_message_ids": _MEMORY_IDS}, []),
     _function("search_tactical_journal", "Search this checkpoint's visible original tactical intents and reviews. Results include stable source IDs. Future journal entries are excluded when an earlier checkpoint is loaded.",
               {"query": _STRING, "limit": _LIMIT}, []),
-    _function("read_tactical_journal", "Read recorded tactical intent and reviews chronologically using offset, or read one entry_id. Follow next_offset until null for a complete review. A record proves what was stated then, not hidden reasoning.",
+    _function("read_tactical_journal", "Read a bounded chunk of recorded tactical intent and discussions using offset, or one entry_id relevant to the current question. A record proves what was stated then, not hidden reasoning. Automatic full-game review is temporarily unavailable.",
               {"entry_id": _STRING, "offset": {"type": "integer", "minimum": 0}, "limit": _LIMIT}, []),
-    _function("search_experience", "Search the shared local lessons accumulated during prior play across games and models, including candidates without player review. Later experience remains available after checkpoint rewind. Treat contradictions and uncertainty explicitly.",
-              {"query": _STRING, "limit": _LIMIT}, []),
-    _function("read_experience", "Read a shared lesson's original statement, appended revisions, counterexamples, model provenance and source excerpts. Long records are paginated; follow next_text_offset. A candidate is not an established rule.",
-              {"lesson_id": _STRING, "offset": {"type": "integer", "minimum": 0},
+    _function("search_experience", "Search shared local lessons across games and models, including candidates without player review. Defaults to general scope. To consult the current scenario, explicitly use scenario scope and its actual scenario title from materials/chat; names are not IDs. Explicit unclassified scope inspects legacy records without treating them as general advice. Later experience remains after checkpoint rewind. Treat contradictions and uncertainty explicitly.",
+              {"query": _STRING, "limit": _LIMIT, **_EXPERIENCE_FILTER}, []),
+    _function("read_experience", "Read a bounded excerpt of a shared lesson's statement, revisions, counterexamples, provenance and source excerpts. Defaults to general scope even when lesson_id is known. Scenario lessons require explicit scenario scope and their actual scenario name; use unclassified explicitly for legacy records. A candidate is not an established rule.",
+              {"lesson_id": _STRING, **_EXPERIENCE_FILTER, "offset": {"type": "integer", "minimum": 0},
                "max_chars": {"type": "integer", "minimum": 1, "maximum": 24000}}, ["lesson_id"]),
-    _function("record_review", "Save a review of all available play through the cited messages. The game need not be over and normal play can continue. Distinguish original intent from retrospective interpretation; uncertain final outcomes remain unknown.",
+    _function("record_review", "Save the player's requested bounded discussion of cited recorded events. Automatic full-game review is temporarily unavailable; do not sweep the entire archive. Distinguish original intent from retrospective interpretation; uncertain outcomes remain unknown and normal play can continue.",
               {"title": {"type": "string", "maxLength": 200},
                "text": {"type": "string", "maxLength": 20000}, "source_message_ids": _MEMORY_IDS},
               ["title", "text", "source_message_ids"]),

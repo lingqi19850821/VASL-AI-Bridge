@@ -139,7 +139,8 @@ def handle_game_tool(session: ChatSession, name: str, arguments: dict,
         if not pdf and page != 1:
             raise ReferenceTextError("A raster reference image has only page 1.")
         image_url = render_pdf_page(reference.content, page) if pdf else render_reference_image(reference.name, reference.content)
-        original_png = reference.name.lower().endswith(".png")
+        # Rendering has validated the bytes; the filename may use another image suffix.
+        original_png = reference.content.startswith(b"\x89PNG\r\n\x1a\n")
         metadata = {
             "reference_id": reference.reference_id, "name": reference.name,
             "source_sha256": reference.sha256,
