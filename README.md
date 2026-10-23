@@ -33,7 +33,7 @@ Full-game review is temporarily unavailable: it consumes too much usage allowanc
 ### Known issues
 
 1. Resizing the window causes severe lag.
-2. Try to resolve severe lag while generating replies.
+2. Severe lag while generating replies.
 3. After a reply, the conversation does not automatically scroll down to the latest reply.
 4. Loading a save does not automatically scroll down to the last reply.
 5. A single reply supports at most 8 images.
@@ -383,7 +383,7 @@ Third-party components retain their own licenses. See [Third-party notices](pack
 ### 已知问题
 
 1. 窗口改变大小时非常卡顿
-2. 尝试解决生成回复时非常卡顿
+2. 生成回复时非常卡顿
 3. 回复之后不会自动下拉到最新的回复
 4. 载入存档不会自动下拉到最后的回复
 5. 一次回复最多8张图
@@ -701,7 +701,7 @@ VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-
 ### 已知問題
 
 1. 窗口改變大小時非常卡頓
-2. 嘗試解決生成回覆時非常卡頓
+2. 生成回覆時非常卡頓
 3. 回覆之後不會自動下拉到最新的回覆
 4. 載入存檔不會自動下拉到最後的回覆
 5. 一次回覆最多8張圖
