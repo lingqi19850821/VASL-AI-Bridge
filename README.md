@@ -4,6 +4,8 @@
 
 **Language / 语言 / 語言:** [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
+**Known issues / 已知问题 / 已知問題:** [English](#en-known-issues) | [简体中文](#zh-cn-known-issues) | [繁體中文](#zh-tw-known-issues)
+
 ---
 
 <a name="english"></a>
@@ -12,7 +14,22 @@
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[Features](#en-features) · [Quick Start](#en-quick-start) · [Save and Continue](#en-save-and-continue) · [History and Review](#en-history-and-review) · [Controls and Settings](#en-controls-and-settings) · [Known issues](#en-known-issues) · [Privacy](#en-privacy) · [Credits](#en-credits) · [License](#en-license)
+[Known issues](#en-known-issues) · [Features](#en-features) · [Quick Start](#en-quick-start) · [Save and Continue](#en-save-and-continue) · [History and shared lessons](#en-history-and-review) · [Controls and Settings](#en-controls-and-settings) · [Privacy](#en-privacy) · [Credits](#en-credits) · [License](#en-license)
+
+<a name="en-known-issues"></a>
+
+### Known issues
+
+The following issues were reported during play and remain to be addressed:
+
+1. **Window resizing:** resizing can be slow.
+2. **Reply generation:** the interface can become sluggish while the AI is replying.
+3. **Scrolling after replies:** the conversation may not scroll to the latest reply automatically.
+4. **Scrolling after loading:** opening a save may not scroll to the latest reply automatically.
+5. **Images:** testing encountered a limit of eight images in one reply or operation. The affected flow and exact limit still need investigation.
+6. **Screenshot window:** the default window size is too small.
+7. **English hints:** some hints may still appear in English; this needs checking in the current application.
+
 
 **Play ASL with an AI opponent that can consult your references and return to your game record.**
 
@@ -28,15 +45,15 @@ The AI chooses and explains its side's actions. You operate VASL: move counters,
 
 - **References within reach.** Give the AI your rules, combat charts, scenario sheets and other materials. It can search readable text and inspect pages or images when it needs to check a detail.
 - **Continue a game without starting the explanation again.** Keep the conversation, sent screenshots, selected references and a reviewed stopping-point report together. Open the game later and check the saved situation with the AI before continuing.
-- **Discuss specific decisions using the original record.** Revisit an earlier exchange or screenshot and discuss a particular event. Tactical notes help distinguish what was intended from what actually happened. Automatic whole-game review is temporarily unavailable while its usage cost is optimized.
-- **Carry useful lessons into later games.** The AI is instructed to record useful lessons during ordinary play. A shared experience library lets later games and different selected models consult general lessons and lessons matched to the current scenario name. Older unclassified lessons remain stored for classification; they are not assumed to be general advice.
+- **Discuss specific decisions using the original record.** Revisit an earlier exchange or screenshot and discuss a particular event. Tactical notes help distinguish what was intended from what actually happened.
+- **Carry useful lessons into later games.** The AI records useful lessons during play. General lessons can be used across scenarios; scenario-specific lessons include the scenario name and are consulted only for that scenario.
 - **Choose your interface language.** Use English, Simplified Chinese or Traditional Chinese. Change it in Settings and keep the same game, draft and attachments.
 
 Voice input is optional. You can play entirely by typing and sending board screenshots.
 
 [![VASL AI Bridge main window, with AI connection and game controls above the board and chat areas](screenshots/Main.png)](screenshots/Main.png)
 
-*The main window. Click any screenshot in this guide to open the full-size image. The screenshots show an earlier English interface and may include the Review game button, which is currently unavailable. Other control labels follow your selected interface language.*
+*The main window. These screenshots show an earlier English interface. Click any screenshot to view it at full size.*
 
 <a name="en-quick-start"></a>
 
@@ -205,17 +222,15 @@ Reference images, such as a scenario card or Order of Battle, are reference file
 
 <a name="en-history-and-review"></a>
 
-### History and Review
+### History and shared lessons
 
 Scroll back through the conversation yourself, or ask the AI to find an earlier exchange and inspect its original screenshot. The stored record remains available for lookup as a game grows.
-
-**Automatic whole-game review is temporarily unavailable.** Testing showed excessive usage-allowance consumption, so the dedicated review action has been removed pending optimization. This does not establish a fixed quota cost or a quota cap for ordinary AI requests. You can still discuss specific recorded events and consult their original evidence.
 
 For example:
 
 > Find the earlier exchange about that movement and inspect its original screenshot. What result did I report, and which available rule source should we check for this decision?
 
-The AI is instructed to keep concise tactical notes and record useful lessons from reported outcomes and corrections during normal play. This continues independently of the disabled whole-game review. Lessons are classified as general or specific to a scenario by its name. General lessons and lessons for the current scenario name can be consulted in later games, including when a different model is selected. Unclassified older lessons remain stored pending classification and are not treated as general lessons.
+The AI keeps tactical notes and records useful lessons from the results and corrections you provide. General lessons can be used across scenarios; scenario-specific lessons include the scenario name and are consulted only for that scenario. These lessons remain available when you switch models. Older lessons without a classification are preserved but excluded from these lookups.
 
 Treat lessons as material to discuss and check against the rules and evidence. Models can make mistakes. A later explanation of an intention is not the same as an intention recorded at the time, and a screenshot that has been cleared is no longer available for inspection.
 
@@ -318,22 +333,6 @@ If you already have a compatible local installation, you can use **Automatic loc
 
 Spoken language is detected automatically. **Cancel voice** cancels recording or transcription while preserving the existing draft and attachments. Voice configuration is independent of the first-game setup.
 
-<a name="en-known-issues"></a>
-
-### Known issues and remaining improvements
-
-The following limitations and reported issues remain visible as release work continues. The performance, scrolling, image, screenshot-window and language items below are recorded as remaining improvements.
-
-1. **Whole-game review:** temporarily unavailable after testing showed excessive allowance use. It needs optimization before returning; ordinary targeted history discussion remains available.
-2. **Lesson scope:** classification currently uses general experience or the scenario name only. It does not distinguish scenario editions or other scenario attributes. Older untagged lessons remain stored pending classification and are not automatically general lessons.
-3. **Window resizing:** resizing has been reported to lag.
-4. **Reply generation:** the interface has been reported to lag while an AI reply is being generated.
-5. **Scrolling after replies:** the conversation may not automatically scroll to the latest reply.
-6. **Scrolling after loading:** opening a save may not automatically scroll to the final reply.
-7. **Images:** a maximum of eight images in one reply or operation was reported during testing. The affected flow remains under investigation; this is not a verified universal API limit.
-8. **Screenshot window:** its default size has been reported to be too small.
-9. **Language hints:** some hints/notices were reported to remain in English. Interface localization is implemented, but this report still needs verification in the actual running application.
-
 <a name="en-privacy"></a>
 
 ### Privacy
@@ -368,7 +367,22 @@ Third-party components retain their own licenses. See [Third-party notices](pack
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[功能](#zh-cn-features) · [快速开始](#zh-cn-quick-start) · [保存与继续](#zh-cn-save-and-continue) · [历史与复盘](#zh-cn-history-and-review) · [操作与设置](#zh-cn-controls-and-settings) · [已知问题](#zh-cn-known-issues) · [隐私](#zh-cn-privacy) · [致谢](#zh-cn-credits) · [许可证](#zh-cn-license)
+[已知问题](#zh-cn-known-issues) · [功能](#zh-cn-features) · [快速开始](#zh-cn-quick-start) · [保存与继续](#zh-cn-save-and-continue) · [对局记录与经验](#zh-cn-history-and-review) · [操作与设置](#zh-cn-controls-and-settings) · [隐私](#zh-cn-privacy) · [致谢](#zh-cn-credits) · [许可证](#zh-cn-license)
+
+<a name="zh-cn-known-issues"></a>
+
+### 已知问题
+
+测试中发现以下问题，后续会逐步改进：
+
+1. **调整窗口大小时卡顿。**
+2. **AI 生成回复时，界面可能卡顿。**
+3. **收到回复后，对话可能不会自动滚动到最新内容。**
+4. **打开存档后，对话可能不会自动滚动到最后一条。**
+5. **图片数量：** 测试中遇到过一次回复或操作最多处理 8 张图片的情况，具体限制仍待确认。
+6. **截图窗口默认太小。**
+7. **部分提示可能仍显示英文，需在当前版本中确认。**
+
 
 **与能够查阅你的参考资料、回看对局记录的 AI 对手一起玩 ASL。**
 
@@ -376,23 +390,23 @@ VASL AI Bridge 是一款 Windows 配套应用，用于在 VASL 中游玩 Advance
 
 **目前支持的 AI 连接方式：** 本版本仅支持**使用 ChatGPT 登录（Sign in with ChatGPT）**。目前不支持其他 AI 服务商或 API 密钥连接。
 
-AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算子、掷骰、检查视线、结算流程并报告结果。
+AI 负责决定并说明自己一方的行动。你负责操作 VASL：移动棋子、掷骰、检查视线、按规则处理结果，再把结果告诉 AI。
 
 <a name="zh-cn-features"></a>
 
 ### 功能
 
 - **随时查阅参考资料。** 向 AI 提供规则、战斗表、剧本卡及其他资料。需要核对细节时，它可以搜索可读文本，并查看页面或图像。
-- **继续对局，无需从头解释。** 将对话、已发送的截图、选定的参考资料以及经过核对的暂停点报告保存在一起。以后重新打开对局，先与 AI 核对保存的局面，再继续游玩。
-- **依据原始记录讨论具体决策。** 回看某次早先的交流或截图，讨论特定事件。战术笔记有助于区分当时的意图和实际发生的结果。自动整局复盘暂时停用，正在等待用量优化。
-- **将有用的经验带入后续对局。** AI 被要求在日常对局中记录有用的经验。共用经验库让后续对局和不同的所选模型能够查阅通用经验，以及与当前剧本名称匹配的经验。旧的未分类经验会保留待分类，不会被默认视为通用建议。
+- **继续对局，无需从头解释。** 对话、已发送的截图、选定的参考资料和存档报告会保存在一起。下次打开对局，先与 AI 核对局面，再继续游戏。
+- **依据原始记录讨论具体决策。** 回看某次早先的交流或截图，讨论特定事件。战术笔记有助于区分当时的意图和实际发生的结果。
+- **将有用的经验带入后续对局。** AI 会记录对局中有用的经验。通用经验可用于不同剧本；剧本专用经验会注明剧本名称，只在同一剧本中查阅。
 - **三种界面语言。** 支持 English、简体中文和繁體中文，可在设置中切换并记住选择。
 
 语音输入为可选功能。你完全可以通过打字和发送棋盘截图来游玩。
 
 [![VASL AI Bridge 主窗口，AI 连接和对局控件位于棋盘与聊天区域上方](screenshots/Main.png)](screenshots/Main.png)
 
-*主窗口。本节沿用较早英文界面的原始截图，可能显示目前暂不可用的“复盘（Review game）”按钮。其他操作说明使用对应的简体中文控件名称，首次提及时或在操作表中附上英文名称。点击本指南中的任意截图即可查看原始尺寸的图像。*
+*主窗口。截图来自较早的英文界面，点击任意截图即可查看原图。*
 
 <a name="zh-cn-quick-start"></a>
 
@@ -459,7 +473,7 @@ AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算
 
 **高亮行不等于已勾选的复选框。** 这张截图中的第一行处于高亮状态，但没有文件被勾选。点击**确定**之前，请先勾选你希望 AI 使用的文件。移除文件的操作见[管理参考文件](#zh-cn-managing-reference-files)。
 
-请提供剧本需要的全部规则，包括适用的额外规则或模块规则。规则和图表可以位于同一份文档，也可以分布在多个文件中。AI 被要求在开始游玩前检查规则和图表是否基本可读；这项检查不代表已经验证所有必需规则均已齐全。请补充它报告缺失的资料，并通过普通对话说明要求。
+请提供剧本所需的全部规则，包括适用的额外规则或模块规则。规则和图表可以合在一份文档，也可以分成多个文件。AI 会在对局开始前检查基本规则和图表能否读取，但这不保证资料已经齐全。请补充它指出缺少的资料，其他要求可直接在对话中说明。
 
 #### 4. 附上初始棋盘
 
@@ -495,7 +509,7 @@ AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算
 
 #### 手动存档点
 
-如果希望保留某个特定的暂停点，例如回合结束时的状态，以便日后返回，请使用**保存**。同一个对局文件夹中可以保留多个已命名的存档点，就像游戏可以同时有一个自动存档和多个手动存档：
+如果想保留某一时刻的对局进度，例如一个回合结束时的局面，方便以后返回，请使用**保存**。同一个对局文件夹中可以保留多个命名存档，就像游戏可以同时保留自动存档和多个手动存档：
 
 1. 点击**保存**，请 AI 准备一份对局报告。
 2. 检查剧本、双方、目标、回合和阶段、重要单位的位置与状态，以及尚未解决的行动。
@@ -507,7 +521,7 @@ AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算
 
 后续自动保存不会覆盖已命名的存档点。它们会一直保留，直到你明确覆盖或删除。
 
-**如果游玩过程中 AI 暂时无法使用：** 用量限制、连接中断或服务故障都可能阻止新的 AI 回复或存档报告。应用会显示错误，解释相应问题。本地的**当前进度**无需等待 AI 回复，就会记录你已经发送的对话和截图。以后可以重新打开**当前进度**，待服务恢复后，再请 AI 检查并纠正暂停点。**保存**仍然会请求 AI 报告，无法绕过不可用的服务。关闭应用前请检查任何本地保存错误；未发送的草稿和附件不属于已存储的记录。请在 VASL 中另外保存对应的棋盘。
+**如果对局中 AI 暂时无法使用：** 额度用尽、连接中断或服务故障都可能导致 AI 无法回复，也无法生成存档报告。应用会显示相应错误。本地的**当前进度**仍会记录你已经发送的对话和截图。以后重新打开**当前进度**，等服务恢复后，再让 AI 核对局面。**保存**需要 AI 生成报告，因此也要等服务恢复后才能完成。关闭应用前，请留意是否有本地保存失败的提示；未发送的草稿和附件不会存入对局记录。对应的棋盘仍需在 VASL 中单独保存。
 
 #### 稍后继续
 
@@ -521,7 +535,7 @@ AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算
 
 **两种记录都要保留：** VASL AI Bridge 保存对话和对局记录，VASL 棋盘存档保存棋盘本身。打开其中一种不会恢复另一种。移动或复制对局之前，请先关闭 VASL AI Bridge，并将整个对局文件夹保存在一起。
 
-**返回较早的存档点不会回退共用经验。** 该存档点之后的聊天不会进入它恢复的对局上下文，但已经加入共用经验库的经验仍可能可用，并影响后续游玩。
+**返回较早的存档点不会回退共享经验。** 该存档点之后的聊天不会进入它恢复的对局上下文，但已经加入共享经验库的经验仍可能可用，并影响后续游玩。
 
 #### 管理对局与存储
 
@@ -531,25 +545,23 @@ AI 决定并解释它所控制一方的行动。你负责操作 VASL：移动算
 
 - **删除选中的存档点...（Delete selected save point...）**只删除该存档点。当前进度或对局记录仍需使用的共用原始资料会保留，因此释放的空间可能很少。
 - **清除所有棋盘截图...（Clear all board screenshots...）**会清除所选对局在**全部**存档点中的棋盘图像。聊天、战术笔记、经验和参考文件会保留，但讨论早先事件时将无法再查看这些原始棋盘图像。应用会要求确认。
-- **删除对局数据...（Delete game data...）**会移除该对局由应用管理的记录、存档点和资料。无关文件和共用经验库会保留。当前正在使用的对局无法删除，请先切换到其他对局。
+- **删除对局数据...（Delete game data...）**会移除该对局由应用管理的记录、存档点和资料。无关文件和共享经验库会保留。当前正在使用的对局无法删除，请先切换到其他对局。
 
 剧本卡或战斗序列（Order of Battle）等参考图像属于参考文件，清除棋盘截图时会保留。
 
 <a name="zh-cn-history-and-review"></a>
 
-### 历史与复盘
+### 对局记录与经验
 
-你可以自行向上滚动查看对话，也可以请 AI 找出较早的交流并查看其原始截图。随着对局进行，存储的记录仍可供查阅。
-
-**自动整局复盘暂时停用。** 测试发现它会消耗过多用量额度，因此专门的复盘操作已移除，等待优化后再恢复。这不代表已经确认某次复盘的固定额度成本，也不代表普通 AI 请求已有额度上限。你仍可针对具体的已记录事件进行讨论，并查阅原始证据。
+你可以向上翻看对话，也可以请 AI 查找之前的对话和原始截图。对局记录会一直保留，方便随时查阅。
 
 例如：
 
 > 请找到早先有关那次移动的交流，并查看原始截图。我当时报告了什么结果？针对这个决策，我们应该核对哪份可用的规则来源？
 
-AI 被要求在日常对局中记录简洁的战术笔记，并根据你报告的结果和纠正内容记录有用的经验。这项机制独立于已停用的整局复盘，仍会继续运行。经验按通用经验或剧本名称分类。后续对局可以查阅通用经验和与当前剧本名称匹配的经验，包括改用其他模型的情况。旧的未分类经验会保留待分类，不会被视为通用经验。
+AI 会记录战术笔记，并根据你提供的结果和纠正内容积累经验。通用经验可用于不同剧本；剧本专用经验会注明剧本名称，只在同一剧本中查阅。更换模型后，这些经验仍可使用。旧的未分类经验会保留，但不会混入上述两类经验的查询结果。
 
-请将这些经验作为讨论材料，结合规则和证据核对。模型可能犯错。事后对某个意图的解释，不等于当时已经记录的意图；已清除的截图也无法再供查看。
+AI 也会犯错，使用这些经验时仍需核对规则和实际记录。事后的解释不代表当时的想法；已经清除的截图无法再次查看。
 
 <a name="zh-cn-controls-and-settings"></a>
 
@@ -573,7 +585,7 @@ AI 被要求在日常对局中记录简洁的战术笔记，并根据你报告�
 | **打开...（Open...）** | 从某局的当前进度或已命名的存档点继续。 |
 | **对局与存储...（Games and storage...）** | 查看磁盘占用、管理存档点和清除对局数据。 |
 
-**对局与存储...**旁的记录状态会显示战术笔记、共用经验或等待记录的消息。确认这些内容已保存之前，请先阅读任何存储错误信息。
+**对局与存储...**旁的记录状态会显示战术笔记、共享经验或等待记录的消息。确认这些内容已保存之前，请先阅读任何存储错误信息。
 
 如果服务器拒绝你的账户使用所选模型，应用会提示你选择其他模型或检查订阅。用量限制、临时请求限制、登录过期、连接或服务问题也会显示各自对应的信息。
 
@@ -642,29 +654,13 @@ AI 被要求在日常对局中记录简洁的战术笔记，并根据你报告�
 
 应用会自动识别所说的语言。**取消语音（Cancel voice）**会取消录音或转写，同时保留现有草稿和附件。语音配置与首次对局设置相互独立。
 
-<a name="zh-cn-known-issues"></a>
-
-### 已知问题与后续改进
-
-发布工作继续进行时，以下限制和用户报告的问题仍予以公开说明。其中的性能、滚动、图像、截图窗口和语言项目属于后续改进事项。
-
-1. **整局复盘：** 测试发现额度消耗过高，目前暂不可用，需要优化后再恢复。针对具体历史事件的讨论仍可使用。
-2. **经验范围：** 目前只区分通用经验和按剧本名称分类的经验，尚不区分剧本版本或其他属性。旧的未标记经验会保留待分类，不会自动视为通用经验。
-3. **调整窗口大小：** 有调整大小时卡顿的报告。
-4. **生成回复：** 有 AI 生成回复期间界面卡顿的报告。
-5. **回复后的滚动：** 对话可能不会自动滚动到最新回复。
-6. **加载后的滚动：** 打开存档后可能不会自动滚动到最后一条回复。
-7. **图像：** 测试中有一次回复或操作最多八张图像的报告。具体影响的流程仍待调查；这不是已经验证的通用 API 限制。
-8. **截图窗口：** 有默认尺寸过小的报告。
-9. **语言提示：** 有部分提示或通知仍显示英文的报告。界面本地化已经实现，但这项报告仍需要在实际运行的应用中验证。
-
 <a name="zh-cn-privacy"></a>
 
 ### 隐私
 
-**保存在你的电脑上。** 参考资料库、对局记录、截图、战术笔记、共用经验和设置都保存在本机。对局记录和战术日志未加密。笔记可能包含 AI 的战术意图；休闲游玩的公平性，依靠玩家自行决定是否查看这些内容。
+**保存在你的电脑上。** 参考资料库、对局记录、截图、战术笔记、共享经验和设置都保存在本机。对局记录和战术日志未加密。笔记可能包含 AI 的战术意图；休闲游玩的公平性，依靠玩家自行决定是否查看这些内容。
 
-**在线请求发送给 OpenAI。** 登录和 AI 服务通过本地 Codex 运行时连接 OpenAI。开发者不会通过本应用收到你的对话、参考文件、截图或语音录音，也没有运营用于收集这些数据的服务器。草稿文字和附件会留在电脑上，直到你发送。发送消息或请求 AI 存档报告，都会向 OpenAI 发送内容；AI 也可以在请求过程中查阅选定的参考资料、较早的对局记录和共用经验。询问早先事件仍属于在线 AI 请求。这些资料会发送给 OpenAI，以生成回复。你对 OpenAI 服务的使用必须遵守其适用的[条款](https://openai.com/policies/terms-of-use/)和[使用政策](https://openai.com/policies/usage-policies/)，包括安全与防止滥用的规则。OpenAI 根据其[隐私政策](https://openai.com/policies/privacy-policy/)处理收到的信息。
+**在线请求发送给 OpenAI。** 登录和 AI 服务通过本地 Codex 运行时连接 OpenAI。开发者不会通过本应用收到你的对话、参考文件、截图或语音录音，也没有运营用于收集这些数据的服务器。草稿文字和附件会留在电脑上，直到你发送。发送消息或请求 AI 存档报告，都会向 OpenAI 发送内容；AI 也可以在请求过程中查阅选定的参考资料、较早的对局记录和共享经验。询问早先事件仍属于在线 AI 请求。这些资料会发送给 OpenAI，以生成回复。你对 OpenAI 服务的使用必须遵守其适用的[条款](https://openai.com/policies/terms-of-use/)和[使用政策](https://openai.com/policies/usage-policies/)，包括安全与防止滥用的规则。OpenAI 根据其[隐私政策](https://openai.com/policies/privacy-policy/)处理收到的信息。
 
 **语音在本地转写。** 应用使用你的本地语音引擎，不会将录音发送给 OpenAI。生成的文字会留在草稿中，直到你发送。
 
@@ -692,7 +688,22 @@ VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[功能特色](#zh-tw-features) · [快速開始](#zh-tw-quick-start) · [儲存與繼續](#zh-tw-save-and-continue) · [歷史紀錄與復盤](#zh-tw-history-and-review) · [控制項與設定](#zh-tw-controls-and-settings) · [已知問題](#zh-tw-known-issues) · [隱私](#zh-tw-privacy) · [製作人員](#zh-tw-credits) · [授權](#zh-tw-license)
+[已知問題](#zh-tw-known-issues) · [功能特色](#zh-tw-features) · [快速開始](#zh-tw-quick-start) · [儲存與繼續](#zh-tw-save-and-continue) · [對局紀錄與經驗](#zh-tw-history-and-review) · [控制項與設定](#zh-tw-controls-and-settings) · [隱私](#zh-tw-privacy) · [製作人員](#zh-tw-credits) · [授權](#zh-tw-license)
+
+<a name="zh-tw-known-issues"></a>
+
+### 已知問題
+
+測試中發現以下問題，後續會逐步改善：
+
+1. **調整視窗大小時會卡頓。**
+2. **AI 產生回覆時，介面可能卡頓。**
+3. **收到回覆後，對話可能不會自動捲動到最新內容。**
+4. **開啟存檔後，對話可能不會自動捲動到最後一則。**
+5. **圖片數量：** 測試中遇過一次回覆或操作最多處理 8 張圖片的情況，具體限制仍待確認。
+6. **截圖視窗預設太小。**
+7. **部分提示可能仍顯示英文，需在目前版本中確認。**
+
 
 **與能查閱你的參考資料、隨時回顧對局紀錄的 AI 對手一起玩 ASL。**
 
@@ -700,7 +711,7 @@ VASL AI Bridge 是搭配 VASL 遊玩 Advanced Squad Leader 的 Windows 輔助應
 
 **目前支援的 AI 連線方式：** 此版本僅支援**使用 ChatGPT 登入（Sign in with ChatGPT）**。目前不支援其他 AI 服務供應商或 API 金鑰連線。
 
-AI 會選擇並解釋自己一方的行動。你負責操作 VASL：移動算子、擲骰、檢查視線、執行規則程序，並回報結果。
+AI 負責決定並說明自己一方的行動。你負責操作 VASL：移動棋子、擲骰、檢查視線、依規則處理結果，再把結果告訴 AI。
 
 <a name="zh-tw-features"></a>
 
@@ -708,15 +719,15 @@ AI 會選擇並解釋自己一方的行動。你負責操作 VASL：移動算子
 
 - **隨時查閱參考資料。** 提供規則、戰鬥表、劇本卡與其他資料。AI 可以搜尋可讀文字，並在需要確認細節時查看頁面或影像。
 - **繼續對局，無須重新解釋一切。** 將對話、已傳送的截圖、選取的參考資料，以及經你檢查的停局報告保存在一起。稍後重新開啟對局，先與 AI 核對已儲存的局面，再繼續遊玩。
-- **依據原始紀錄討論具體決策。** 重看某次先前的對話或截圖，討論特定事件。戰術記錄有助於區分當時的意圖與實際發生的事情。自動整局復盤暫時停用，等待使用量最佳化。
-- **將有用經驗帶入後續對局。** AI 接到的指示是在一般遊玩過程中記錄有用經驗。共用經驗庫讓之後的對局及不同的所選模型查閱通用經驗，以及符合目前劇本名稱的經驗。舊的未分類經驗會保留待分類，不會被預設為通用建議。
+- **依據原始紀錄討論具體決策。** 重看某次先前的對話或截圖，討論特定事件。戰術記錄有助於區分當時的意圖與實際發生的事情。
+- **將有用經驗帶入後續對局。** AI 會記錄對局中有用的經驗。通用經驗可用於不同劇本；劇本專用經驗會註明劇本名稱，只在同一劇本中查閱。
 - **三種介面語言。** 可選擇 English、简体中文或繁體中文。儲存設定後立即生效，下次啟動也會保留選擇；介面語言與聊天語言、語音辨識的自動語言偵測互相獨立。
 
 語音輸入是選用功能。完全透過打字與傳送棋盤截圖，也能進行整場對局。
 
 [![VASL AI Bridge 主視窗，AI 連線與對局控制項位於棋盤和聊天區上方](screenshots/Main.png)](screenshots/Main.png)
 
-*主視窗。本指南保留較早英文介面的實際截圖，可能顯示目前暫時無法使用的「復盤（Review game）」按鈕。其他控制項首次出現時及控制項表格會附上英文名稱，方便對照。點選任何截圖即可開啟原始尺寸影像。*
+*主視窗。截圖來自較早的英文介面，點選任何截圖即可查看原圖。*
 
 <a name="zh-tw-quick-start"></a>
 
@@ -863,7 +874,7 @@ AI 會選擇並解釋自己一方的行動。你負責操作 VASL：移動算子
 
 **兩種紀錄都要保留：** VASL AI Bridge 保留對話與對局紀錄；VASL 棋盤存檔保留棋盤本身。開啟其中一種，不會還原另一種。移動或複製對局前，請先關閉 VASL AI Bridge，並將整個對局資料夾一起保留。
 
-**返回較早的存檔點，不會讓共用經驗回復到較早狀態。** 該存檔點還原的對局上下文不包含之後的聊天，但已加入共用經驗庫的經驗仍可能繼續供 AI 使用並影響遊玩。
+**返回較早的存檔點，不會讓共享經驗回復到較早狀態。** 該存檔點還原的對局上下文不包含之後的聊天，但已加入共享經驗庫的經驗仍可能繼續供 AI 使用並影響遊玩。
 
 <a name="zh-tw-manage-games-and-storage"></a>
 
@@ -875,25 +886,23 @@ AI 會選擇並解釋自己一方的行動。你負責操作 VASL：移動算子
 
 - **刪除選取的存檔點...（Delete selected save point...）**會移除該存檔點。目前進度或對局紀錄所需的共用原始資料仍會保留，因此可能只釋出少量空間。
 - **清除所有棋盤截圖...（Clear all board screenshots...）**會清除所選對局**全部**存檔點中的棋盤影像。聊天、戰術記錄、經驗與參考檔案仍會保留，但討論先前事件時將無法再查看那些原始棋盤影像。應用程式會要求確認。
-- **刪除對局資料...（Delete game data...）**會移除該對局由應用程式管理的紀錄、存檔點與資料。無關檔案及共用經驗庫會保留。目前使用中的對局不能刪除；請先切換至另一場對局。
+- **刪除對局資料...（Delete game data...）**會移除該對局由應用程式管理的紀錄、存檔點與資料。無關檔案及共享經驗庫會保留。目前使用中的對局不能刪除；請先切換至另一場對局。
 
 劇本卡或部隊編制（Order of Battle）等參考影像屬於參考檔案，清除棋盤截圖時仍會保留。
 
 <a name="zh-tw-history-and-review"></a>
 
-### 歷史紀錄與復盤
+### 對局紀錄與經驗
 
-你可以自行向上捲動查看對話，或請 AI 尋找較早的交流並查看原始截圖。即使對局逐漸變長，已儲存紀錄仍可供查閱。
-
-**自動整局復盤暫時停用。** 測試發現它會消耗過多使用額度，因此專用的復盤操作已移除，等待最佳化後再恢復。這不代表已確認某次復盤的固定額度成本，也不代表一般 AI 請求已有額度上限。你仍可針對具體的已記錄事件討論，並查閱原始證據。
+你可以往上翻閱對話，也可以請 AI 查找先前的對話與原始截圖。對局紀錄會持續保留，方便隨時查閱。
 
 例如：
 
 > 請找出先前關於那次移動的對話，並查看原始截圖。我當時回報了什麼結果？針對這個決策，我們應該核對哪份可用的規則來源？
 
-AI 接到的指示是在一般遊玩期間，根據回報的結果與更正保留簡潔的戰術記錄，並記錄有用經驗。這項機制獨立於已停用的整局復盤，仍會繼續運作。經驗按通用經驗或劇本名稱分類。之後的對局可以查閱通用經驗及符合目前劇本名稱的經驗，包括選擇不同模型時。舊的未分類經驗會保留待分類，不會被視為通用經驗。
+AI 會保留戰術筆記，並根據你提供的結果與更正累積經驗。通用經驗可用於不同劇本；劇本專用經驗會註明劇本名稱，只在同一劇本中查閱。更換模型後，這些經驗仍可使用。舊的未分類經驗會保留，但不會混入上述兩類經驗的查詢結果。
 
-請將這些經驗視為需要討論，並對照規則與證據核實的資料。模型可能犯錯。事後解釋某個意圖，與當時就記錄下來的意圖並不相同；已清除的截圖也無法再供檢視。
+AI 也會犯錯，使用這些經驗時仍需核對規則與實際紀錄。事後的解釋不代表當時的想法；已經清除的截圖無法再次查看。
 
 <a name="zh-tw-controls-and-settings"></a>
 
@@ -929,7 +938,7 @@ AI 接到的指示是在一般遊玩期間，根據回報的結果與更正保�
 | **開啟...（Open...）** | 從對局的目前進度或已命名的存檔點繼續。 |
 | **對局與儲存空間...（Games and storage...）** | 查看磁碟用量、管理存檔點及清除對局資料。 |
 
-**對局與儲存空間...**旁的記憶狀態會顯示戰術記錄、共用經驗或等待記錄的訊息。確認紀錄已儲存前，請先閱讀任何儲存錯誤訊息。
+**對局與儲存空間...**旁的記憶狀態會顯示戰術記錄、共享經驗或等待記錄的訊息。確認紀錄已儲存前，請先閱讀任何儲存錯誤訊息。
 
 如果伺服器拒絕你的帳號使用所選模型，應用程式會請你選擇其他模型或檢查訂閱。使用量上限、暫時的請求限制、登入失效，以及連線或服務問題，都會顯示對應訊息。
 
@@ -994,29 +1003,13 @@ AI 接到的指示是在一般遊玩期間，根據回報的結果與更正保�
 
 系統會自動偵測所說的語言。**取消語音（Cancel voice）**可取消錄音或轉寫，同時保留現有草稿與附件。語音設定與第一場對局的設定互相獨立。
 
-<a name="zh-tw-known-issues"></a>
-
-### 已知問題與後續改進
-
-發布工作持續進行時，下列限制與使用者回報的問題仍予以公開說明。其中的效能、捲動、影像、截圖視窗及語言項目屬於後續改進事項。
-
-1. **整局復盤：** 測試發現額度消耗過高，目前暫時無法使用，需要最佳化後再恢復。針對特定歷史事件的討論仍可使用。
-2. **經驗範圍：** 目前只區分通用經驗及按劇本名稱分類的經驗，尚不區分劇本版本或其他屬性。舊的未標記經驗會保留待分類，不會自動視為通用經驗。
-3. **調整視窗大小：** 有調整大小時遲滯的回報。
-4. **產生回覆：** 有 AI 產生回覆期間介面遲滯的回報。
-5. **回覆後的捲動：** 對話可能不會自動捲動到最新回覆。
-6. **載入後的捲動：** 開啟存檔後可能不會自動捲動到最後一則回覆。
-7. **影像：** 測試中有一次回覆或操作最多八張影像的回報。具體受影響的流程仍待調查；這不是已驗證的通用 API 限制。
-8. **截圖視窗：** 有預設尺寸過小的回報。
-9. **語言提示：** 有部分提示或通知仍顯示英文的回報。介面在地化已經實作，但這項回報仍需在實際執行的應用程式中驗證。
-
 <a name="zh-tw-privacy"></a>
 
 ### 隱私
 
-**儲存在你的電腦上。** 參考資料庫、對局紀錄、截圖、戰術記錄、共用經驗與設定均儲存在本機。對局紀錄與戰術日誌未加密。記錄可能包含 AI 的戰術意圖；休閒對局的公平性，取決於玩家自行選擇是否查看這些內容。
+**儲存在你的電腦上。** 參考資料庫、對局紀錄、截圖、戰術記錄、共享經驗與設定均儲存在本機。對局紀錄與戰術日誌未加密。記錄可能包含 AI 的戰術意圖；休閒對局的公平性，取決於玩家自行選擇是否查看這些內容。
 
-**線上請求會傳送至 OpenAI。** 登入及 AI 服務透過本機 Codex 執行環境連線至 OpenAI。開發者不會透過本應用程式接收你的對話、參考檔案、截圖或錄音，也未營運蒐集這些資料的伺服器。草稿文字與附件會留在你的電腦上，直到你傳送為止。傳送訊息或請求 AI 存局報告，都會將內容傳送至 OpenAI；在該次請求中，AI 也可以查閱選取的參考資料、較早的對局紀錄及共用經驗。詢問先前事件仍屬於線上 AI 請求。這些資料會傳送至 OpenAI，以產生回覆。使用 OpenAI 服務時，必須遵守適用的[使用條款](https://openai.com/policies/terms-of-use/)與[使用政策](https://openai.com/policies/usage-policies/)，包括其安全及防止濫用規則。OpenAI 會依其[隱私政策](https://openai.com/policies/privacy-policy/)處理收到的資訊。
+**線上請求會傳送至 OpenAI。** 登入及 AI 服務透過本機 Codex 執行環境連線至 OpenAI。開發者不會透過本應用程式接收你的對話、參考檔案、截圖或錄音，也未營運蒐集這些資料的伺服器。草稿文字與附件會留在你的電腦上，直到你傳送為止。傳送訊息或請求 AI 存局報告，都會將內容傳送至 OpenAI；在該次請求中，AI 也可以查閱選取的參考資料、較早的對局紀錄及共享經驗。詢問先前事件仍屬於線上 AI 請求。這些資料會傳送至 OpenAI，以產生回覆。使用 OpenAI 服務時，必須遵守適用的[使用條款](https://openai.com/policies/terms-of-use/)與[使用政策](https://openai.com/policies/usage-policies/)，包括其安全及防止濫用規則。OpenAI 會依其[隱私政策](https://openai.com/policies/privacy-policy/)處理收到的資訊。
 
 **語音在本機轉寫。** 應用程式使用你的本機語音引擎，不會將錄音傳送至 OpenAI。轉寫後的文字會留在草稿中，直到你傳送為止。
 
