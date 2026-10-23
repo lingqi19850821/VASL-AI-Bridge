@@ -1,6 +1,6 @@
 # VASL AI Bridge
 
-## Windows warning and scan report / Windows 警告与扫描报告 / Windows 警告與掃描報告
+### Windows warning and scan report / Windows 警告与扫描报告 / Windows 警告與掃描報告
 
 **简体中文：** Windows SmartScreen 的“未识别的应用”警告属于下载文件的信誉检查，不等于检测到了病毒。v1.0.0 安装包的病毒扫描结果见下方链接。
 
@@ -12,23 +12,13 @@
 
 ---
 
-## Full-game review temporarily unavailable / 整局复盘暂时下线 / 整局復盤暫時下線
+### Full-game review temporarily unavailable / 整局复盘暂时下线 / 整局復盤暫時下線
 
 整局复盘暂时下线：复盘消耗用量过大，需要重新优化以后再上线。
 
 整局復盤暫時下線：復盤消耗用量過大，需要重新優化以後再上線。
 
 Full-game review is temporarily unavailable: it consumes too much usage allowance and must be optimized before it returns.
-
----
-
-<a name="languages"></a>
-
-**Language / 语言 / 語言:** [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
-
-**Known issues / 已知问题 / 已知問題:** [English](#en-known-issues) | [简体中文](#zh-cn-known-issues) | [繁體中文](#zh-tw-known-issues)
-
----
 
 <a name="english"></a>
 
