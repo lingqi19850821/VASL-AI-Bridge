@@ -239,7 +239,7 @@ For example:
 
 > Find the earlier exchange about that movement and inspect its original screenshot. What result did I report, and which available rule source should we check for this decision?
 
-The AI keeps tactical notes and records useful lessons from the results and corrections you provide. General lessons can be used across scenarios; scenario-specific lessons include the scenario name and are consulted only for that scenario. These lessons remain available when you switch models. Older lessons without a classification are preserved but excluded from these lookups.
+The AI keeps tactical notes and records useful lessons from the results and corrections you provide. General lessons can be used across scenarios; scenario-specific lessons include the scenario name and are consulted only for that scenario. These lessons remain available when you switch models. 
 
 Treat lessons as material to discuss and check against the rules and evidence. Models can make mistakes. A later explanation of an intention is not the same as an intention recorded at the time, and a screenshot that has been cleared is no longer available for inspection.
 
@@ -365,8 +365,6 @@ Concept, requirements and product direction by [lingqi19850821](https://github.c
 VASL AI Bridge is licensed under the **GNU Affero General Public License v3.0**, AGPL-3.0-only. See the [project license](https://github.com/lingqi19850821/VASL-AI-Bridge/blob/main/LICENSE).
 
 Third-party components retain their own licenses. See [Third-party notices](packaging/THIRD_PARTY_NOTICES.md).
-
-[Back to language selection](#languages)
 
 ---
 
@@ -565,7 +563,7 @@ AI 负责决定并说明自己一方的行动。你负责操作 VASL：移动棋
 
 > 请找到早先有关那次移动的交流，并查看原始截图。我当时报告了什么结果？针对这个决策，我们应该核对哪份可用的规则来源？
 
-AI 会记录战术笔记，并根据你提供的结果和纠正内容积累经验。通用经验可用于不同剧本；剧本专用经验会注明剧本名称，只在同一剧本中查阅。更换模型后，这些经验仍可使用。旧的未分类经验会保留，但不会混入上述两类经验的查询结果。
+AI 会记录战术笔记，并根据你提供的结果和纠正内容积累经验。通用经验可用于不同剧本；剧本专用经验会注明剧本名称，只在同一剧本中查阅。更换模型后，这些经验仍可使用。
 
 AI 也会犯错，使用这些经验时仍需核对规则和实际记录。事后的解释不代表当时的想法；已经清除的截图无法再次查看。
 
@@ -683,8 +681,6 @@ AI 也会犯错，使用这些经验时仍需核对规则和实际记录。事�
 VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-only。请参阅[项目许可证](https://github.com/lingqi19850821/VASL-AI-Bridge/blob/main/LICENSE)。
 
 第三方组件保留各自的许可证。请参阅[第三方声明](packaging/THIRD_PARTY_NOTICES.md)。
-
-[返回语言选择](#languages)
 
 ---
 
@@ -903,7 +899,7 @@ AI 負責決定並說明自己一方的行動。你負責操作 VASL：移動棋
 
 > 請找出先前關於那次移動的對話，並查看原始截圖。我當時回報了什麼結果？針對這個決策，我們應該核對哪份可用的規則來源？
 
-AI 會保留戰術筆記，並根據你提供的結果與更正累積經驗。通用經驗可用於不同劇本；劇本專用經驗會註明劇本名稱，只在同一劇本中查閱。更換模型後，這些經驗仍可使用。舊的未分類經驗會保留，但不會混入上述兩類經驗的查詢結果。
+AI 會保留戰術筆記，並根據你提供的結果與更正累積經驗。通用經驗可用於不同劇本；劇本專用經驗會註明劇本名稱，只在同一劇本中查閱。更換模型後，這些經驗仍可使用。
 
 AI 也會犯錯，使用這些經驗時仍需核對規則與實際紀錄。事後的解釋不代表當時的想法；已經清除的截圖無法再次查看。
 
@@ -1029,5 +1025,3 @@ AI 也會犯錯，使用這些經驗時仍需核對規則與實際紀錄。事�
 VASL AI Bridge 採用 **GNU Affero General Public License v3.0**，AGPL-3.0-only 授權。請參閱[專案授權](https://github.com/lingqi19850821/VASL-AI-Bridge/blob/main/LICENSE)。
 
 第三方元件保留各自的授權。請參閱[第三方聲明](packaging/THIRD_PARTY_NOTICES.md)。
-
-[返回語言選擇](#languages)
