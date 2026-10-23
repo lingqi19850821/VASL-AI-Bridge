@@ -32,13 +32,13 @@ Full-game review is temporarily unavailable: it consumes too much usage allowanc
 
 ### Known issues
 
-3. Resizing the window causes severe lag.
-4. Try to resolve severe lag while generating replies.
-5. After a reply, the conversation does not automatically scroll down to the latest reply.
-6. Loading a save does not automatically scroll down to the last reply.
-7. A single reply supports at most 8 images.
-8. The screenshot window's default size is too small.
-9. Hints are only in English.
+1. Resizing the window causes severe lag.
+2. Try to resolve severe lag while generating replies.
+3. After a reply, the conversation does not automatically scroll down to the latest reply.
+4. Loading a save does not automatically scroll down to the last reply.
+5. A single reply supports at most 8 images.
+6. The screenshot window's default size is too small.
+7. Hints are only in English.
 
 **Play ASL with an AI opponent that can consult your references and return to your game record.**
 
@@ -382,13 +382,13 @@ Third-party components retain their own licenses. See [Third-party notices](pack
 
 ### 已知问题
 
-3. 窗口改变大小时非常卡顿
-4. 尝试解决生成回复时非常卡顿
-5. 回复之后不会自动下拉到最新的回复
-6. 载入存档不会自动下拉到最后的回复
-7. 一次回复最多8张图
-8. 截图窗口默认大小太小
-9. 提示只有英文
+1. 窗口改变大小时非常卡顿
+2. 尝试解决生成回复时非常卡顿
+3. 回复之后不会自动下拉到最新的回复
+4. 载入存档不会自动下拉到最后的回复
+5. 一次回复最多8张图
+6. 截图窗口默认大小太小
+7. 提示只有英文
 
 **与能够查阅你的参考资料、回看对局记录的 AI 对手一起玩 ASL。**
 
@@ -700,13 +700,13 @@ VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-
 
 ### 已知問題
 
-3. 窗口改變大小時非常卡頓
-4. 嘗試解決生成回覆時非常卡頓
-5. 回覆之後不會自動下拉到最新的回覆
-6. 載入存檔不會自動下拉到最後的回覆
-7. 一次回覆最多8張圖
-8. 截圖窗口默認大小太小
-9. 提示只有英文
+1. 窗口改變大小時非常卡頓
+2. 嘗試解決生成回覆時非常卡頓
+3. 回覆之後不會自動下拉到最新的回覆
+4. 載入存檔不會自動下拉到最後的回覆
+5. 一次回覆最多8張圖
+6. 截圖窗口默認大小太小
+7. 提示只有英文
 
 **與能查閱你的參考資料、隨時回顧對局紀錄的 AI 對手一起玩 ASL。**
 
