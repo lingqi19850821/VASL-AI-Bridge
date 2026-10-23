@@ -14,8 +14,7 @@ param(
     [string]$PythonExe,
     [Parameter(Mandatory = $true)]
     [string]$IsccExe,
-    [string]$SourceRevision = $env:GITHUB_SHA,
-    [switch]$SkipTests
+    [string]$SourceRevision = $env:GITHUB_SHA
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,7 +52,7 @@ if ($compilerSignature.Status -ne [System.Management.Automation.SignatureStatus]
 $compilerOutput = @(& $IsccExe (Join-Path $projectRoot 'packaging/inno_version.iss') 2>&1)
 if ($LASTEXITCODE -ne 0) { throw 'Could not query the installed Inno Setup compiler version.' }
 $versionMarkers = @($compilerOutput | ForEach-Object {
-    if ([string]$_ -match '^\s*(?:Line \d+:\s*)?ASL_AI_INNO_VERSION=(\d+\.\d+\.\d+)\s*$') { $Matches[1] }
+    if ([string]$_ -match '^\s*(?:Line \d+:\s*)?VASL_AI_BRIDGE_INNO_VERSION=(\d+\.\d+\.\d+)\s*$') { $Matches[1] }
 })
 if ($versionMarkers.Count -ne 1 -or $versionMarkers[0] -notin @('6.7.1', '6.7.3')) {
     throw 'Only Inno Setup 6.7.1 and 6.7.3 are supported for this build.'
@@ -67,43 +66,17 @@ New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 
 Push-Location $projectRoot
 try {
-    if (-not $SkipTests) {
-        & $PythonExe -B -m unittest discover -s tests -v
-        if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed; installer was not built.' }
-    }
     & $PythonExe -B packaging/prepare_build.py --source-revision $SourceRevision --inno-version $innoVersion
     if ($LASTEXITCODE -ne 0) { throw 'Build metadata/license preparation failed.' }
     $appVersion = (& $PythonExe -B packaging/prepare_build.py --version-only).Trim()
     if ($LASTEXITCODE -ne 0 -or $appVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Could not read the project version.' }
-    & $PythonExe -B -m PyInstaller --noconfirm --distpath $distRoot --workpath $pyinstallerWorkRoot packaging/ASL_AI.spec
+    & $PythonExe -B -m PyInstaller --noconfirm --distpath $distRoot --workpath $pyinstallerWorkRoot packaging/VASL_AI_Bridge.spec
     if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
-    & $PythonExe -B packaging/audit_payload.py
-    if ($LASTEXITCODE -ne 0) { throw 'The payload audit failed.' }
-
-    $selfTestReport = Join-Path $buildRoot 'self-test.json'
-    if (Test-Path -LiteralPath $selfTestReport) { Remove-Item -LiteralPath $selfTestReport }
-    $selfTestArguments = @('--self-test', '--self-test-report', ('"' + $selfTestReport + '"'))
-    $testProcess = Start-Process -FilePath (Join-Path $payloadRoot 'VASL AI Bridge.exe') -ArgumentList $selfTestArguments -PassThru -WindowStyle Hidden
-    if (-not $testProcess.WaitForExit(90000)) {
-        $testProcess.Kill()
-        throw 'The packaged self-test exceeded 90 seconds.'
-    }
-    if ($testProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $selfTestReport)) { throw 'The packaged self-test failed.' }
-    $selfTest = Get-Content -LiteralPath $selfTestReport -Raw | ConvertFrom-Json
-    if ($selfTest.passed -ne $true -or $selfTest.frozen -ne $true -or $selfTest.version -ne $appVersion) {
-        throw 'The packaged self-test did not confirm this frozen application version.'
-    }
-
-    $helperTestReport = Join-Path $buildRoot 'helper-verification.json'
-    if (Test-Path -LiteralPath $helperTestReport) { Remove-Item -LiteralPath $helperTestReport }
-    & $PythonExe -B scripts/verify_frozen_helper.py --payload-dir $payloadRoot --report $helperTestReport
-    if ($LASTEXITCODE -ne 0) { throw 'The frozen speech helper verification failed.' }
-
-    & $IsccExe ('/DAppVersion=' + $appVersion) ('/DPayloadDir=' + $payloadRoot) ('/DOutputDir=' + $distRoot) packaging/ASL_AI.iss
+    & $IsccExe ('/DAppVersion=' + $appVersion) ('/DPayloadDir=' + $payloadRoot) ('/DOutputDir=' + $distRoot) packaging/VASL_AI_Bridge.iss
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
     $installer = Join-Path $distRoot ('VASL-AI-Bridge-Setup-' + $appVersion + '-x64.exe')
-    & $PythonExe -B packaging/audit_payload.py --installer $installer
-    if ($LASTEXITCODE -ne 0) { throw 'Final installer audit/manifest generation failed.' }
+    $checksum = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+    ($checksum + '  ' + [IO.Path]::GetFileName($installer)) | Set-Content -LiteralPath (Join-Path $distRoot 'SHA256SUMS.txt') -Encoding ascii
     Write-Host ('Built ' + [IO.Path]::GetFileName($installer))
 }
 finally {

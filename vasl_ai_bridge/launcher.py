@@ -19,7 +19,6 @@ _DIAGNOSTIC_FILES = frozenset({
     "__init__.py", "__main__.py", "app.py", "capture.py", "chat_session.py",
     "chat_storage.py", "chat_widgets.py", "codex_bridge.py",
     "desktop_installation.py", "frozen_runtime.py", "game_tools.py", "hotkey.py", "launcher.py",
-    "packaged_self_test.py",
     "preferences.py", "provider.py", "reasoning.py", "reference_formats.py",
     "reference_library.py", "reference_text.py", "screenshot_selection.py",
     "session.py", "settings_dialog.py", "storage.py", "voice.py",

@@ -16,7 +16,7 @@ from typing import Sequence
 
 from . import APP_NAME
 
-SPEECH_HELPER_NAME = "ASL_AI-Speech.exe"
+SPEECH_HELPER_NAME = "VASL-AI-Bridge-Speech.exe"
 _JOB_HANDLES: list[int] = []
 
 

@@ -1,5 +1,27 @@
 # VASL AI Bridge
 
+## Windows warning and scan report / Windows 警告与扫描报告 / Windows 警告與掃描報告
+
+**简体中文：** Windows SmartScreen 的“未识别的应用”警告属于下载文件的信誉检查，不等于检测到了病毒。v1.0.0 安装包的病毒扫描结果见下方链接。
+
+**繁體中文：** Windows SmartScreen 的「無法辨識的應用程式」警告屬於下載檔案的信譽檢查，不等於偵測到了病毒。v1.0.0 安裝程式的病毒掃描結果見下方連結。
+
+**English:** The Windows SmartScreen “unrecognised app” warning is a reputation warning for a downloaded file, not a malware detection result. See the shared link below for the VirusTotal scan report for the v1.0.0 installer.
+
+[VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/83a5e3ff040fc3a11936b6bf242cbec1988acdd14d97a396c7b8684eaa485c14)
+
+---
+
+## Full-game review temporarily unavailable / 整局复盘暂时下线 / 整局復盤暫時下線
+
+整局复盘暂时下线：复盘消耗用量过大，需要重新优化以后再上线。
+
+整局復盤暫時下線：復盤消耗用量過大，需要重新優化以後再上線。
+
+Full-game review is temporarily unavailable: it consumes too much usage allowance and must be optimized before it returns.
+
+---
+
 <a name="languages"></a>
 
 **Language / 语言 / 語言:** [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
@@ -20,16 +42,13 @@
 
 ### Known issues
 
-The following issues were reported during play and remain to be addressed:
-
-1. **Window resizing:** resizing can be slow.
-2. **Reply generation:** the interface can become sluggish while the AI is replying.
-3. **Scrolling after replies:** the conversation may not scroll to the latest reply automatically.
-4. **Scrolling after loading:** opening a save may not scroll to the latest reply automatically.
-5. **Images:** testing encountered a limit of eight images in one reply or operation. The affected flow and exact limit still need investigation.
-6. **Screenshot window:** the default window size is too small.
-7. **English hints:** some hints may still appear in English; this needs checking in the current application.
-
+3. Resizing the window causes severe lag.
+4. Try to resolve severe lag while generating replies.
+5. After a reply, the conversation does not automatically scroll down to the latest reply.
+6. Loading a save does not automatically scroll down to the last reply.
+7. A single reply supports at most 8 images.
+8. The screenshot window's default size is too small.
+9. Hints are only in English.
 
 **Play ASL with an AI opponent that can consult your references and return to your game record.**
 
@@ -373,16 +392,13 @@ Third-party components retain their own licenses. See [Third-party notices](pack
 
 ### 已知问题
 
-测试中发现以下问题，后续会逐步改进：
-
-1. **调整窗口大小时卡顿。**
-2. **AI 生成回复时，界面可能卡顿。**
-3. **收到回复后，对话可能不会自动滚动到最新内容。**
-4. **打开存档后，对话可能不会自动滚动到最后一条。**
-5. **图片数量：** 测试中遇到过一次回复或操作最多处理 8 张图片的情况，具体限制仍待确认。
-6. **截图窗口默认太小。**
-7. **部分提示可能仍显示英文，需在当前版本中确认。**
-
+3. 窗口改变大小时非常卡顿
+4. 尝试解决生成回复时非常卡顿
+5. 回复之后不会自动下拉到最新的回复
+6. 载入存档不会自动下拉到最后的回复
+7. 一次回复最多8张图
+8. 截图窗口默认大小太小
+9. 提示只有英文
 
 **与能够查阅你的参考资料、回看对局记录的 AI 对手一起玩 ASL。**
 
@@ -694,16 +710,13 @@ VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-
 
 ### 已知問題
 
-測試中發現以下問題，後續會逐步改善：
-
-1. **調整視窗大小時會卡頓。**
-2. **AI 產生回覆時，介面可能卡頓。**
-3. **收到回覆後，對話可能不會自動捲動到最新內容。**
-4. **開啟存檔後，對話可能不會自動捲動到最後一則。**
-5. **圖片數量：** 測試中遇過一次回覆或操作最多處理 8 張圖片的情況，具體限制仍待確認。
-6. **截圖視窗預設太小。**
-7. **部分提示可能仍顯示英文，需在目前版本中確認。**
-
+3. 窗口改變大小時非常卡頓
+4. 嘗試解決生成回覆時非常卡頓
+5. 回覆之後不會自動下拉到最新的回覆
+6. 載入存檔不會自動下拉到最後的回覆
+7. 一次回覆最多8張圖
+8. 截圖窗口默認大小太小
+9. 提示只有英文
 
 **與能查閱你的參考資料、隨時回顧對局紀錄的 AI 對手一起玩 ASL。**
 

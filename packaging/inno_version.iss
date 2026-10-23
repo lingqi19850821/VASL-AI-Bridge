@@ -1,8 +1,8 @@
 ; Query the installed compiler's own version without creating an installer.
-#pragma message "ASL_AI_INNO_VERSION=" + DecodeVer(VER)
+#pragma message "VASL_AI_BRIDGE_INNO_VERSION=" + DecodeVer(VER)
 
 [Setup]
-AppName=ASL_AI compiler version check
+AppName=VASL AI Bridge compiler version check
 AppVersion=0
 CreateAppDir=no
 Uninstallable=no

@@ -86,7 +86,7 @@ desktop_exe = EXE(
 speech_exe = EXE(
     speech_pyz, speech.scripts, [("u", None, "OPTION"), ("X utf8", None, "OPTION")],
     exclude_binaries=True,
-    name="ASL_AI-Speech",
+    name="VASL-AI-Bridge-Speech",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

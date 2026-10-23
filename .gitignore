@@ -32,3 +32,20 @@ dist/
 # Editors and operating system files
 .DS_Store
 Thumbs.db
+
+# Internal development files are not publication inputs
+/tests/
+/Issues.txt
+/run.ps1
+/Start VASL AI Bridge.cmd
+/scripts/verify_windows_setup.ps1
+/scripts/verify_frozen_helper.py
+/scripts/setup_local_voice.py
+/vasl_ai_bridge/packaged_self_test.py
+/packaging/audit_payload.py
+/packaging/prepare_icon.py
+/vasl_ai_bridge/assets/README.md
+/vasl_ai_bridge/assets/app-icon-32.png
+/vasl_ai_bridge/assets/app-icon-large.png
+/packaging/ASL_AI.spec
+/packaging/ASL_AI.iss

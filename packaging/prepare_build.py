@@ -111,10 +111,10 @@ def build_info(source_revision: str, inno_version: str) -> dict:
         result["github_repository"] = repository
         result["github_run_id"] = run_id
         result["github_run_url"] = f"https://github.com/{repository}/actions/runs/{run_id}"
-    release_tag = os.environ.get("ASL_AI_RELEASE_TAG", "")
+    release_tag = os.environ.get("VASL_AI_BRIDGE_RELEASE_TAG", "")
     if release_tag:
         if release_tag != "v" + result["version"]:
-            raise ValueError("ASL_AI_RELEASE_TAG must match the project version.")
+            raise ValueError("VASL_AI_BRIDGE_RELEASE_TAG must match the project version.")
         result["release_tag"] = release_tag
     return result
 
