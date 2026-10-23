@@ -2,13 +2,13 @@
 
 ### Windows warning and scan report / Windows 警告与扫描报告 / Windows 警告與掃描報告
 
-**简体中文：** Windows SmartScreen 的“未识别的应用”警告属于下载文件的信誉检查，不等于检测到了病毒。v1.0.0 安装包的病毒扫描结果见下方链接。
+** Windows SmartScreen 的“未识别的应用”警告属于下载文件的信誉检查，不等于检测到了病毒。安装包的病毒扫描结果见下方链接。
 
-**繁體中文：** Windows SmartScreen 的「無法辨識的應用程式」警告屬於下載檔案的信譽檢查，不等於偵測到了病毒。v1.0.0 安裝程式的病毒掃描結果見下方連結。
+** Windows SmartScreen 的「無法辨識的應用程式」警告屬於下載檔案的信譽檢查，不等於偵測到了病毒。安裝程式的病毒掃描結果見下方連結。
 
-**English:** The Windows SmartScreen “unrecognised app” warning is a reputation warning for a downloaded file, not a malware detection result. See the shared link below for the VirusTotal scan report for the v1.0.0 installer.
+** The Windows SmartScreen “unrecognised app” warning is a reputation warning for a downloaded file, not a malware detection result. See the shared link below for the VirusTotal scan report for the installer.
 
-[VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/83a5e3ff040fc3a11936b6bf242cbec1988acdd14d97a396c7b8684eaa485c14)
+[VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/b362dc51091668a7d7d20cb3c98a9dc0f730f449a96688fbe708e618980a4912)
 
 ---
 
