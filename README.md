@@ -8,17 +8,9 @@
 
 ** The Windows SmartScreen “unrecognised app” warning is a reputation warning for a downloaded file, not a malware detection result. See the shared link below for the VirusTotal scan report for the installer.
 
-[VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/b362dc51091668a7d7d20cb3c98a9dc0f730f449a96688fbe708e618980a4912)
+[v1.0.0 — VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/b362dc51091668a7d7d20cb3c98a9dc0f730f449a96688fbe708e618980a4912)
 
 ---
-
-### Full-game review temporarily unavailable / 整局复盘暂时下线 / 整局復盤暫時下線
-
-整局复盘暂时下线：复盘消耗用量过大，需要重新优化以后再上线。
-
-整局復盤暫時下線：復盤消耗用量過大，需要重新優化以後再上線。
-
-Full-game review is temporarily unavailable: it consumes too much usage allowance and must be optimized before it returns.
 
 <a name="english"></a>
 
@@ -26,7 +18,7 @@ Full-game review is temporarily unavailable: it consumes too much usage allowanc
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[Known issues](#en-known-issues) · [Features](#en-features) · [Quick Start](#en-quick-start) · [Save and Continue](#en-save-and-continue) · [History and shared lessons](#en-history-and-review) · [Controls and Settings](#en-controls-and-settings) · [Privacy](#en-privacy) · [Credits](#en-credits) · [License](#en-license)
+[Known issues](#en-known-issues) · [Features](#en-features) · [Quick Start](#en-quick-start) · [Save and Continue](#en-save-and-continue) · [Game review and shared lessons](#en-history-and-review) · [Controls and Settings](#en-controls-and-settings) · [Privacy](#en-privacy) · [Credits](#en-credits) · [License](#en-license)
 
 <a name="en-known-issues"></a>
 
@@ -54,7 +46,7 @@ The AI chooses and explains its side's actions. You operate VASL: move counters,
 
 - **References within reach.** Give the AI your rules, combat charts, scenario sheets and other materials. It can search readable text and inspect pages or images when it needs to check a detail.
 - **Continue a game without starting the explanation again.** Keep the conversation, sent screenshots, selected references and a reviewed stopping-point report together. Open the game later and check the saved situation with the AI before continuing.
-- **Discuss specific decisions using the original record.** Revisit an earlier exchange or screenshot and discuss a particular event. Tactical notes help distinguish what was intended from what actually happened.
+- **Review the game with saved Notes.** Read the AI's recorded current situation, goal and expected result beside the relevant reply. Open each Note when you want to inspect it; viewing saved Notes uses no additional AI allowance.
 - **Carry useful lessons into later games.** The AI records useful lessons during play. General lessons can be used across scenarios; scenario-specific lessons include the scenario name and are consulted only for that scenario.
 - **Choose your interface language.** Use English, Simplified Chinese or Traditional Chinese. Change it in Settings and keep the same game, draft and attachments.
 
@@ -231,7 +223,20 @@ Reference images, such as a scenario card or Order of Battle, are reference file
 
 <a name="en-history-and-review"></a>
 
-### History and shared lessons
+### Game review and shared lessons
+
+#### Review with Notes
+
+Notes let you revisit the AI's recorded tactical intentions alongside the conversation. Best viewed after the game: revealing them during play can affect fairness and your play experience.
+
+1. Open the game or save point you want to review.
+2. Turn on **Show Notes** at the top of the conversation. Read the disclosure and choose **Show Notes** to continue, or **Cancel** to leave Notes hidden.
+3. Scroll to an AI reply and click **Note 1**, **Note 2**, or another available Note to expand it. Each shows **Current situation**, **Goal** and **Expected result**, in that order. A reply can have several Notes. Click again to collapse it; collapsed Notes show no saved content.
+4. Turn off **Show Notes** to hide all Notes. Viewing starts off when the app opens and resets when you open a game or save point.
+
+The viewer reads existing records on your computer. Opening, expanding and collapsing Notes makes no AI request and uses no additional AI allowance. The original Note text stays unchanged when you switch between English, Simplified Chinese and Traditional Chinese; only interface labels change.
+
+#### Discuss specific events and shared lessons
 
 Scroll back through the conversation yourself, or ask the AI to find an earlier exchange and inspect its original screenshot. The stored record remains available for lookup as a game grows.
 
@@ -374,7 +379,7 @@ Third-party components retain their own licenses. See [Third-party notices](pack
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[已知问题](#zh-cn-known-issues) · [功能](#zh-cn-features) · [快速开始](#zh-cn-quick-start) · [保存与继续](#zh-cn-save-and-continue) · [对局记录与经验](#zh-cn-history-and-review) · [操作与设置](#zh-cn-controls-and-settings) · [隐私](#zh-cn-privacy) · [致谢](#zh-cn-credits) · [许可证](#zh-cn-license)
+[已知问题](#zh-cn-known-issues) · [功能](#zh-cn-features) · [快速开始](#zh-cn-quick-start) · [保存与继续](#zh-cn-save-and-continue) · [复盘与经验](#zh-cn-history-and-review) · [操作与设置](#zh-cn-controls-and-settings) · [隐私](#zh-cn-privacy) · [致谢](#zh-cn-credits) · [许可证](#zh-cn-license)
 
 <a name="zh-cn-known-issues"></a>
 
@@ -402,7 +407,7 @@ AI 负责决定并说明自己一方的行动。你负责操作 VASL：移动棋
 
 - **随时查阅参考资料。** 向 AI 提供规则、战斗表、剧本卡及其他资料。需要核对细节时，它可以搜索可读文本，并查看页面或图像。
 - **继续对局，无需从头解释。** 对话、已发送的截图、选定的参考资料和存档报告会保存在一起。下次打开对局，先与 AI 核对局面，再继续游戏。
-- **依据原始记录讨论具体决策。** 回看某次早先的交流或截图，讨论特定事件。战术笔记有助于区分当时的意图和实际发生的结果。
+- **通过 Note 复盘。** 在对应的 AI 回复旁查看当时记录的当前形势、目标和预期结果。每条 Note 由你主动展开，查看已保存的内容不会额外消耗 AI 用量。
 - **将有用的经验带入后续对局。** AI 会记录对局中有用的经验。通用经验可用于不同剧本；剧本专用经验会注明剧本名称，只在同一剧本中查阅。
 - **三种界面语言。** 支持 English、简体中文和繁體中文，可在设置中切换并记住选择。
 
@@ -555,7 +560,20 @@ AI 负责决定并说明自己一方的行动。你负责操作 VASL：移动棋
 
 <a name="zh-cn-history-and-review"></a>
 
-### 对局记录与经验
+### 复盘与经验
+
+#### 使用 Note 复盘
+
+Note 把 AI 当时记录的战术意图放在对应对话旁，方便你回看和比较实际结果。建议在对局结束后查看；对局中提前了解这些内容会影响公平性和游玩体验。
+
+1. 打开想要复盘的对局或存档点。
+2. 勾选对话顶部的**显示 Note（Show Notes）**。阅读提示后，点击**显示 Note**继续；点击**取消**则保持隐藏。
+3. 滚动到一条 AI 回复，点击旁边的 **Note 1**、**Note 2** 等条目展开。内容依次为**当前形势**、**目标**和**预期结果**。同一条回复可以对应多条 Note。再次点击即可折叠，折叠时不显示任何已保存内容。
+4. 取消勾选**显示 Note**可隐藏全部 Note。每次启动或打开对局、存档点时，都会恢复为关闭状态。
+
+查看器直接读取电脑上已有的记录。开启、展开或折叠 Note 都不会发起 AI 请求，也不会额外消耗 AI 用量。切换英语、简体中文或繁体中文时，只有界面标题随之切换，原始 Note 内容保持不变。
+
+#### 讨论具体事件与积累经验
 
 你可以向上翻看对话，也可以请 AI 查找之前的对话和原始截图。对局记录会一直保留，方便随时查阅。
 
@@ -690,7 +708,7 @@ VASL AI Bridge 采用 **GNU Affero General Public License v3.0**，即 AGPL-3.0-
 
 [English](#english) | [简体中文](#zh-cn) | [繁體中文](#zh-tw)
 
-[已知問題](#zh-tw-known-issues) · [功能特色](#zh-tw-features) · [快速開始](#zh-tw-quick-start) · [儲存與繼續](#zh-tw-save-and-continue) · [對局紀錄與經驗](#zh-tw-history-and-review) · [控制項與設定](#zh-tw-controls-and-settings) · [隱私](#zh-tw-privacy) · [製作人員](#zh-tw-credits) · [授權](#zh-tw-license)
+[已知問題](#zh-tw-known-issues) · [功能特色](#zh-tw-features) · [快速開始](#zh-tw-quick-start) · [儲存與繼續](#zh-tw-save-and-continue) · [復盤與經驗](#zh-tw-history-and-review) · [控制項與設定](#zh-tw-controls-and-settings) · [隱私](#zh-tw-privacy) · [製作人員](#zh-tw-credits) · [授權](#zh-tw-license)
 
 <a name="zh-tw-known-issues"></a>
 
@@ -718,7 +736,7 @@ AI 負責決定並說明自己一方的行動。你負責操作 VASL：移動棋
 
 - **隨時查閱參考資料。** 提供規則、戰鬥表、劇本卡與其他資料。AI 可以搜尋可讀文字，並在需要確認細節時查看頁面或影像。
 - **繼續對局，無須重新解釋一切。** 將對話、已傳送的截圖、選取的參考資料，以及經你檢查的停局報告保存在一起。稍後重新開啟對局，先與 AI 核對已儲存的局面，再繼續遊玩。
-- **依據原始紀錄討論具體決策。** 重看某次先前的對話或截圖，討論特定事件。戰術記錄有助於區分當時的意圖與實際發生的事情。
+- **透過 Note 復盤。** 在對應的 AI 回覆旁查看當時記錄的當前形勢、目標和預期結果。每則 Note 由你主動展開，查看已儲存的內容不會額外消耗 AI 用量。
 - **將有用經驗帶入後續對局。** AI 會記錄對局中有用的經驗。通用經驗可用於不同劇本；劇本專用經驗會註明劇本名稱，只在同一劇本中查閱。
 - **三種介面語言。** 可選擇 English、简体中文或繁體中文。儲存設定後立即生效，下次啟動也會保留選擇；介面語言與聊天語言、語音辨識的自動語言偵測互相獨立。
 
@@ -891,7 +909,20 @@ AI 負責決定並說明自己一方的行動。你負責操作 VASL：移動棋
 
 <a name="zh-tw-history-and-review"></a>
 
-### 對局紀錄與經驗
+### 復盤與經驗
+
+#### 使用 Note 復盤
+
+Note 將 AI 當時記錄的戰術意圖放在對應的對話旁，方便你回顧並比較實際結果。建議在對局結束後查看；對局中提前了解這些內容會影響公平性與遊玩體驗。
+
+1. 開啟想要復盤的對局或存檔點。
+2. 勾選對話頂部的**顯示 Note（Show Notes）**。閱讀提示後，按**顯示 Note**繼續；按**取消**則保持隱藏。
+3. 捲動至一則 AI 回覆，按旁邊的 **Note 1**、**Note 2** 等項目展開。內容依序為**當前形勢**、**目標**與**預期結果**。同一則回覆可以對應多則 Note。再次點選即可摺疊，摺疊時不顯示任何已儲存內容。
+4. 取消勾選**顯示 Note**可隱藏全部 Note。每次啟動或開啟對局、存檔點時，都會恢復為關閉狀態。
+
+檢視器直接讀取電腦上既有的紀錄。開啟、展開或摺疊 Note 都不會發起 AI 請求，也不會額外消耗 AI 用量。切換英語、簡體中文或繁體中文時，只有介面標題隨之切換，原始 Note 內容保持不變。
+
+#### 討論具體事件與累積經驗
 
 你可以往上翻閱對話，也可以請 AI 查找先前的對話與原始截圖。對局紀錄會持續保留，方便隨時查閱。
 

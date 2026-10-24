@@ -408,7 +408,7 @@ class CodexBridge:
             self._tool_worker.start()
             try:
                 result = self._rpc("initialize", {
-                    "clientInfo": {"name": "vasl_ai_bridge", "title": APP_NAME, "version": "1.0.0"},
+                    "clientInfo": {"name": "vasl_ai_bridge", "title": APP_NAME, "version": "1.1.0"},
                     "capabilities": {"experimentalApi": True, "explicitGatewayOauth": True},
                 })
                 self._send({"method": "initialized", "params": {}})
