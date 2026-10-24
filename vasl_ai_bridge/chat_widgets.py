@@ -7,7 +7,10 @@ from typing import Callable
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPixmap
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
+    QPushButton, QSizePolicy, QToolButton, QVBoxLayout, QWidget,
+)
 
 from .chat_session import ChatMessage
 from .preferences import AppPreferences, SEND_MODES
@@ -92,6 +95,124 @@ class ChatInput(QPlainTextEdit):
         super().keyPressEvent(event)
 
 
+class NoteDisclosureDialog(QDialog):
+    """A plain dialog: no QMessageBox alert role or application/system chime."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFont(parent.font() if parent is not None else ui_font(AppPreferences()))
+        self.setWindowTitle(tr("Show Notes?"))
+        layout = QVBoxLayout(self)
+        self.explanation = QLabel(tr(
+            "Viewing Notes will reveal the AI's recorded tactical intentions and action goals. "
+            "This may affect fairness and your play experience. Best viewed after the game."
+            "\n\nDo you still want to show Notes?"))
+        self.explanation.setTextFormat(Qt.TextFormat.PlainText)
+        self.explanation.setWordWrap(True)
+        layout.addWidget(self.explanation)
+        buttons = QDialogButtonBox()
+        self.continue_button = buttons.addButton(tr("Show Notes"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self.cancel_button = buttons.addButton(tr("Cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        self.continue_button.setAutoDefault(False)
+        self.cancel_button.setDefault(True)
+        self.cancel_button.setFocus()
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.resize(490, 200)
+
+
+class NoteWidget(QWidget):
+    """Persistent, plain-text intent fields, concealed while collapsed."""
+
+    size_changed = Signal()
+    FIELDS = (("assumptions", "Current situation"), ("goal", "Goal"), ("expected_result", "Expected result"))
+
+    def __init__(self, note: dict, number: int, parent: QWidget | None = None, *,
+                 preferences: AppPreferences) -> None:
+        super().__init__(parent)
+        self.note = dict(note)
+        self.number = number
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+        self.toggle = QToolButton()
+        self.toggle.setCheckable(True)
+        self.toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        layout.addWidget(self.toggle, 0, Qt.AlignmentFlag.AlignLeft)
+        self.details = QWidget()
+        self.details_layout = QVBoxLayout(self.details)
+        self.details_layout.setContentsMargins(12, 2, 4, 7)
+        self.details_layout.setSpacing(5)
+        self.headings: dict[str, QLabel] = {}
+        self.values: dict[str, QLabel] = {}
+        for field, _ in self.FIELDS:
+            heading, value = QLabel(), QLabel()
+            for label in (heading, value):
+                label.setTextFormat(Qt.TextFormat.PlainText)
+                label.setWordWrap(True)
+                label.setMinimumWidth(0)
+                self.details_layout.addWidget(label)
+            value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            self.headings[field], self.values[field] = heading, value
+        layout.addWidget(self.details)
+        self.toggle.toggled.connect(self._toggled)
+        self.apply_preferences(preferences)
+
+    def update_note(self, note: dict, number: int) -> None:
+        if self.note != note or self.number != number:
+            self.note, self.number = dict(note), number
+            self._refresh_text()
+            self.size_changed.emit()
+
+    def _refresh_text(self) -> None:
+        expanded = self.toggle.isChecked()
+        self.toggle.setText(tr("Note {number}", number=self.number))
+        self.toggle.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
+        self.details.setVisible(expanded)
+        for field, title in self.FIELDS:
+            # Clear collapsed labels as well as hiding them. Neither tooltips
+            # nor the disclosure button contain any saved Note content.
+            self.headings[field].setText(tr(title) if expanded else "")
+            self.values[field].setText((self.note[field] or tr("Not recorded.")) if expanded else "")
+
+    def _toggled(self, checked: bool) -> None:
+        self._refresh_text()
+        self.size_changed.emit()
+
+    def apply_preferences(self, preferences: AppPreferences) -> None:
+        self.toggle.setFont(ui_font(preferences, self.font()))
+        heading_font = ui_font(preferences, self.font())
+        heading_font.setWeight(QFont.Weight.Bold)
+        for field, _ in self.FIELDS:
+            self.headings[field].setFont(heading_font)
+            self.values[field].setFont(chat_font(preferences, self.font()))
+        self._refresh_text()
+        self.size_changed.emit()
+
+    def fit_height(self, width: int) -> int:
+        height = self.toggle.sizeHint().height()
+        if self.toggle.isChecked():
+            margins = self.details_layout.contentsMargins()
+            content_width = max(1, width - margins.left() - margins.right())
+            rows = []
+            for field, _ in self.FIELDS:
+                for label in (self.headings[field], self.values[field]):
+                    label.setMinimumHeight(0)
+                    row_height = max(label.fontMetrics().height(), label.heightForWidth(content_width))
+                    label.setMinimumHeight(row_height)
+                    rows.append(row_height)
+            detail_height = sum(rows) + self.details_layout.spacing() * (len(rows) - 1)
+            detail_height += margins.top() + margins.bottom()
+            self.details.setMinimumHeight(detail_height)
+            height += self.layout().spacing() + detail_height
+        else:
+            self.details.setMinimumHeight(0)
+        self.setMinimumHeight(height)
+        return height
+
+
 class MessageBubble(QWidget):
     """A full-width row with a right-aligned user bubble or a left AI block.
 
@@ -145,6 +266,14 @@ class MessageBubble(QWidget):
                 button.setEnabled(False)
             layout.addWidget(button)
             self.attachment_buttons.append(button)
+        self._notes: list[dict] = []
+        self.note_widgets: dict[str, NoteWidget] = {}
+        self.notes_container = QWidget()
+        self.notes_layout = QVBoxLayout(self.notes_container)
+        self.notes_layout.setContentsMargins(0, 0, 0, 0)
+        self.notes_layout.setSpacing(6)
+        self.notes_container.hide()
+        layout.addWidget(self.notes_container)
         self.row_layout.addStretch(1)
         self.row_layout.addWidget(self.body)
         self.row_layout.addStretch(1)
@@ -153,6 +282,31 @@ class MessageBubble(QWidget):
 
     def title(self) -> str:
         return self.heading.text()
+
+    def set_notes(self, notes: list[dict]) -> None:
+        notes = notes if self._message.role == "assistant" else []
+        if notes == self._notes:
+            return
+        self._notes = [dict(note) for note in notes]
+        identifiers = {note["entry_id"] for note in notes}
+        for identifier in list(self.note_widgets):
+            if identifier not in identifiers:
+                widget = self.note_widgets.pop(identifier)
+                widget.toggle.setChecked(False)
+                self.notes_layout.removeWidget(widget)
+                widget.hide()
+                widget.deleteLater()
+        for index, note in enumerate(notes):
+            widget = self.note_widgets.get(note["entry_id"])
+            if widget is None:
+                widget = NoteWidget(note, index + 1, self.notes_container, preferences=self._preferences)
+                widget.size_changed.connect(self._schedule_fit)
+                self.note_widgets[note["entry_id"]] = widget
+            else:
+                widget.update_note(note, index + 1)
+            self.notes_layout.insertWidget(index, widget)
+        self.notes_container.setVisible(bool(notes))
+        self._schedule_fit()
 
     def apply_preferences(self, preferences: AppPreferences) -> None:
         self._preferences = preferences
@@ -163,6 +317,8 @@ class MessageBubble(QWidget):
         self.heading.setFont(heading_font)
         for button in self.attachment_buttons:
             button.setText(tr("Screenshot"))
+        for note in self.note_widgets.values():
+            note.apply_preferences(preferences)
         self._schedule_fit()
         self.updateGeometry()
 
@@ -215,13 +371,19 @@ class MessageBubble(QWidget):
         self.text.setMinimumHeight(0)
         text_height = max(self.text.fontMetrics().height(), self.text.heightForWidth(text_width))
         self.text.setMinimumHeight(text_height)
-        button_height = 0
+        heights = [self.heading.sizeHint().height(), text_height]
         for button in self.attachment_buttons:
             height = button.sizeHint().height()
             button.setMinimumHeight(height)
-            button_height += height
-        content_height = self.heading.sizeHint().height() + text_height + button_height
-        content_height += self.body.layout().spacing() * (1 + len(self.attachment_buttons))
+            heights.append(height)
+        if self.note_widgets:
+            notes_height = sum(note.fit_height(text_width) for note in self.note_widgets.values())
+            notes_height += self.notes_layout.spacing() * (len(self.note_widgets) - 1)
+            self.notes_container.setMinimumHeight(notes_height)
+            heights.append(notes_height)
+        else:
+            self.notes_container.setMinimumHeight(0)
+        content_height = sum(heights) + self.body.layout().spacing() * (len(heights) - 1)
         content_height += margins.top() + margins.bottom() + self.body.frameWidth() * 2
         self.body.setMinimumHeight(content_height)
         row_margins = self.row_layout.contentsMargins()

@@ -245,6 +245,29 @@ class MemoryService:
         return [item for item in journal["entries"] if self._visible(item, session)
                 and (checkpoints or item.get("kind") != "memory_checkpoint")]
 
+    def notes_by_message(self, session: ChatSession, context: dict | None = None) -> dict[str, list[dict]]:
+        """Read original intent fields for the local viewer without writing memory.
+
+        Both the associated reply and every source must belong to the loaded
+        conversation, so an earlier save point cannot reveal later intentions.
+        This is a UI reader, not a model tool or a new recording contract.
+        """
+        with self._lock:
+            journal, _, _ = self._journal(session, context)
+            visible = {message.message_id for message in session.messages}
+            replies = {message.message_id for message in session.messages if message.role == "assistant"}
+            result: dict[str, list[dict]] = {}
+            for entry in journal["entries"]:
+                reply = entry["visibility_message_id"]
+                if (entry["kind"] != "intent" or reply not in replies
+                        or any(source not in visible for source in entry["source_message_ids"])):
+                    continue
+                fields = {name: entry.get(name, "") for name in ("assumptions", "goal", "expected_result")}
+                if any(not isinstance(value, str) for value in fields.values()):
+                    raise GameMemoryError("The tactical journal contains invalid records; it was not replaced.")
+                result.setdefault(reply, []).append({"entry_id": entry["entry_id"], **fields})
+            return result
+
     def pending_message_ids(self, session: ChatSession, context: dict | None = None) -> list[str]:
         with self._lock:
             journal, _, _ = self._journal(session, context)

@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, Qt, QThread, QTimer, QUrl, QSettings, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QIcon, QPixmap, QTextCursor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QBoxLayout, QComboBox, QDialog, QFileDialog, QFrame,
+    QAbstractItemView, QApplication, QBoxLayout, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame,
     QGroupBox, QHBoxLayout, QLabel, QLayout, QMainWindow,
     QDialogButtonBox, QListWidget, QListWidgetItem,
     QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSplitter, QVBoxLayout, QWidget,
@@ -23,7 +23,7 @@ from . import APP_NAME
 from .capture import CaptureError, WindowSource, capture_window, capture_visible_window, list_windows
 from .chat_session import ChatMessage, ChatSession, new_id, now_utc
 from .chat_storage import ChatStore
-from .chat_widgets import ChatInput, MessageBubble, ui_font
+from .chat_widgets import ChatInput, MessageBubble, NoteDisclosureDialog, ui_font
 from .codex_bridge import CodexBridge
 from .game_tools import handle_game_tool
 from .game_folders import GameFolderStore
@@ -291,6 +291,9 @@ class MainWindow(QMainWindow):
         self._report_ready, self._needs_resume, self._closing = False, False, False
         self._reviewing_report = False
         self._message_widgets: dict[str, MessageBubble] = {}
+        self._notes_enabled = False
+        self._notes_by_message: dict[str, list[dict]] = {}
+        self._notes_error = ""
         self._initial_geometry_applied = False
         self.setWindowTitle(APP_NAME)
         self.resize(1375, 970)
@@ -302,7 +305,7 @@ class MainWindow(QMainWindow):
             control.setProperty("i18n_skip_items", True)
         for control in (self.login_button, self.connection_label, self.memory_label,
                         self.session_label, self.hotkey_label, self.reference_label,
-                        self.voice_button, self.voice_label, self.status,
+                         self.voice_button, self.voice_label, self.status, self.notes_status,
                         self.preview_panel.image, self.preview_panel.details):
             control.setProperty("i18n_skip", True)
         localize_widget_tree(self)
@@ -312,6 +315,7 @@ class MainWindow(QMainWindow):
         self._voice_state_changed(self.voice.state)
         self.notice("Ready. No AI request has been sent.")
         self.memory_changed.connect(self._refresh_memory_status)
+        self.memory_changed.connect(self._refresh_notes)
         self.memory_failed.connect(self._memory_failed)
         self.voice.state_changed.connect(self._voice_state_changed)
         self.voice.transcript_ready.connect(self._voice_transcript)
@@ -476,6 +480,17 @@ class MainWindow(QMainWindow):
         split.addWidget(left_scroll)
         chat = QWidget()
         chat_layout = QVBoxLayout(chat)
+        notes_row = QHBoxLayout()
+        self.notes_toggle = QCheckBox("Show Notes")
+        self.notes_toggle.toggled.connect(self._toggle_notes)
+        notes_row.addWidget(self.notes_toggle)
+        notes_row.addStretch()
+        chat_layout.addLayout(notes_row)
+        self.notes_status = QLabel()
+        self.notes_status.setTextFormat(Qt.TextFormat.PlainText)
+        self.notes_status.setWordWrap(True)
+        self.notes_status.hide()
+        chat_layout.addWidget(self.notes_status)
         self.chat_scroll = QScrollArea()
         self.chat_scroll.setWidgetResizable(True)
         self.chat_content = QWidget()
@@ -675,6 +690,42 @@ class MainWindow(QMainWindow):
     def _memory_failed(self, reason: str) -> None:
         self._last_memory_error = reason
         self._refresh_memory_status()
+
+    def _toggle_notes(self, enabled: bool) -> None:
+        if enabled:
+            dialog = NoteDisclosureDialog(self)
+            accepted = dialog.exec() == QDialog.DialogCode.Accepted
+            dialog.deleteLater()
+            if not accepted:
+                self.notes_toggle.blockSignals(True)
+                self.notes_toggle.setChecked(False)
+                self.notes_toggle.blockSignals(False)
+                return
+        self._notes_enabled = enabled
+        self._refresh_notes()
+
+    def _refresh_notes(self) -> None:
+        self._notes_by_message = {}
+        self._notes_error = ""
+        if self._notes_enabled:
+            context = {"game_folder": self.game_folder} if self.game_folder is not None else {}
+            try:
+                self._notes_by_message = self.memory.notes_by_message(self.session, context)
+            except (OSError, ValueError, StorageError) as exc:
+                self._notes_error = str(exc)
+        for message_id, bubble in self._message_widgets.items():
+            bubble.set_notes(self._notes_by_message.get(message_id, []))
+        self._update_notes_status()
+
+    def _update_notes_status(self) -> None:
+        text = ""
+        if self._notes_enabled:
+            if self._notes_error:
+                text = tr("Notes could not be loaded: {error}", error=localize_error(self._notes_error))
+            elif not self._notes_by_message:
+                text = tr("No Notes are recorded for this conversation.")
+        self.notes_status.setText(text)
+        self.notes_status.setVisible(bool(text))
 
     def _refresh_memory_status(self) -> None:
         if not hasattr(self, "memory_label"):
@@ -1062,6 +1113,7 @@ class MainWindow(QMainWindow):
             self._render_attachments()
             self._voice_state_changed(self.voice.state)
             self._refresh_memory_status()
+            self._update_notes_status()
         self.setFont(ui_font(preferences, self.font()))
         self.message_edit.apply_preferences(preferences)
         for bubble in self._message_widgets.values():
@@ -1938,6 +1990,10 @@ class MainWindow(QMainWindow):
             self.notice(str(exc), True)
 
     def _reset_chat(self) -> None:
+        # A newly opened game/save point starts concealed, including reopening
+        # the same game. Disclosure is a viewing choice, never saved game data.
+        self.notes_toggle.setChecked(False)
+        self._notes_by_message = {}
         for widget in self._message_widgets.values():
             self.chat_layout.removeWidget(widget)
             widget.hide()
@@ -1970,6 +2026,7 @@ class MainWindow(QMainWindow):
                 self.chat_layout.addWidget(widget)
             else:
                 widget.update_message(message)
+            widget.set_notes(self._notes_by_message.get(message.message_id, []))
         if at_bottom:
             QTimer.singleShot(0, lambda: bar.setValue(bar.maximum()))
         names = "\n".join(reference.name for reference in self.session.references)

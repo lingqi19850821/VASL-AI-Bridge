@@ -1,6 +1,18 @@
 """Explicit Simplified and Traditional Chinese translations for player widgets."""
 
 TRANSLATIONS = {
+    "Show Notes": ("显示 Note", "顯示 Note"),
+    "Show Notes?": ("显示 Note？", "顯示 Note？"),
+    "Viewing Notes will reveal the AI's recorded tactical intentions and action goals. This may affect fairness and your play experience. Best viewed after the game.\n\nDo you still want to show Notes?": (
+        "查看 Note 会透露 AI 记录的战术意图和行动目标，可能影响对局的公平性和游玩体验，建议在对局结束后查看。\n\n仍要显示 Note 吗？",
+        "查看 Note 會透露 AI 記錄的戰術意圖和行動目標，可能影響對局的公平性和遊玩體驗，建議在對局結束後查看。\n\n仍要顯示 Note 嗎？"),
+    "Note {number}": ("Note {number}", "Note {number}"),
+    "Current situation": ("当前形势", "當前形勢"),
+    "Goal": ("目标", "目標"),
+    "Expected result": ("预期结果", "預期結果"),
+    "Not recorded.": ("未记录。", "未記錄。"),
+    "Notes could not be loaded: {error}": ("无法加载 Note：{error}", "無法載入 Note：{error}"),
+    "No Notes are recorded for this conversation.": ("这段对话尚无 Note 记录。", "這段對話尚無 Note 紀錄。"),
     "New game": ("新建对局", "建立對局"),
     "Choose where to create this game's folder. Save points and shared screenshots will stay together inside it.": (
         "选择此对局文件夹的创建位置。存档点和共用截图都会保存在其中。",
