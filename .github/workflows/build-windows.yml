@@ -1,4 +1,5 @@
 name: Build Windows Setup
+# Build for owner antivirus review. Release publication requires separate approval.
 
 on:
   workflow_dispatch:
@@ -41,14 +42,10 @@ jobs:
           python-version: "3.12"
           architecture: x64
 
-      - name: Validate the source commit and optional release tag
+      - name: Validate the project version and optional release tag
         id: source
         run: |
           $ErrorActionPreference = 'Stop'
-          $sourceRevision = (git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $sourceRevision -ne $env:GITHUB_SHA) {
-            throw 'The checkout does not match the event source commit.'
-          }
           $version = (python -c "import pathlib,tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])").Trim()
           if ($LASTEXITCODE -ne 0 -or $version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
             throw 'The project version must have three numeric components.'
@@ -59,8 +56,8 @@ jobs:
             }
             git show-ref --verify --quiet "refs/tags/$env:VASL_AI_BRIDGE_RELEASE_TAG"
             if ($LASTEXITCODE -ne 0) { throw 'The requested release tag does not exist.' }
-            $tagRevision = (git rev-parse "refs/tags/$env:VASL_AI_BRIDGE_RELEASE_TAG^{commit}").Trim()
-            if ($LASTEXITCODE -ne 0 -or $tagRevision -ne $sourceRevision) {
+            $matchingTags = @(git tag --points-at HEAD --list $env:VASL_AI_BRIDGE_RELEASE_TAG)
+            if ($LASTEXITCODE -ne 0 -or $matchingTags -cnotcontains $env:VASL_AI_BRIDGE_RELEASE_TAG) {
               throw 'The release tag must identify the exact commit being built.'
             }
           }
@@ -97,10 +94,10 @@ jobs:
         run: |
           ./scripts/build_windows.ps1 -PythonExe (Get-Command python).Source -IsccExe $env:INNO_COMPILER -SourceRevision $env:GITHUB_SHA
 
-      - name: Upload only the release artifacts
+      - name: Upload the installer for owner antivirus review
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: VASL-AI-Bridge-Windows-${{ steps.source.outputs.version }}-${{ github.sha }}
+          name: VASL-AI-Bridge-Windows-${{ steps.source.outputs.version }}-candidate-${{ github.run_number }}
           path: |
             dist/VASL-AI-Bridge-Setup-${{ steps.source.outputs.version }}-x64.exe
             dist/SHA256SUMS.txt

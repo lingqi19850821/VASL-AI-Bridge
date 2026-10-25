@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 from importlib import metadata
 import json
 import os
@@ -131,7 +130,7 @@ def copy_license(source: Path, relative: Path, included: list[str]) -> None:
 
 
 def copy_vendored_qt_licenses(included: list[str]) -> list[dict[str, str]]:
-    """Copy reviewed local notices only, checking their recorded content hashes."""
+    """Copy local notices with version, source, path and required-file checks."""
     manifest_path = VENDORED_LICENSE_ROOT / "manifest.json"
     if manifest_path.is_symlink():
         raise RuntimeError("The vendored Qt license manifest must not be a symlink.")
@@ -145,7 +144,7 @@ def copy_vendored_qt_licenses(included: list[str]) -> list[dict[str, str]]:
     for entry in manifest["files"]:
         if not isinstance(entry, dict):
             raise RuntimeError("A vendored Qt license entry is invalid.")
-        name, source, digest = (entry.get(key) for key in ("path", "source", "sha256"))
+        name, source = (entry.get(key) for key in ("path", "source"))
         if (not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\.txt", name)
                 or name in paths):
             raise RuntimeError("Vendored Qt license paths must be unique relative text filenames.")
@@ -155,17 +154,14 @@ def copy_vendored_qt_licenses(included: list[str]) -> list[dict[str, str]]:
                 or (len(relative.parts) != 1 and relative.parts[0] not in VENDORED_LICENSE_GROUPS)):
             raise RuntimeError("The vendored Qt license path is outside the reviewed groups.")
         if (not isinstance(source, str) or not source.startswith((
-                "https://doc.qt.io/qt-6.11/", "https://raw.githubusercontent.com/qt/qtbase/v6.11.2/LICENSES/"))
-                or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
-            raise RuntimeError("The vendored Qt license source or digest is invalid.")
+                "https://doc.qt.io/qt-6.11/", "https://raw.githubusercontent.com/qt/qtbase/v6.11.2/LICENSES/"))):
+            raise RuntimeError("The vendored Qt license source is invalid.")
         original = VENDORED_LICENSE_ROOT / relative
         if original.is_symlink() or original.resolve().relative_to(VENDORED_LICENSE_ROOT.resolve()).as_posix() != name:
             raise RuntimeError("Vendored Qt license files must remain inside their source directory.")
-        if hashlib.sha256(original.read_bytes()).hexdigest() != digest:
-            raise RuntimeError("A vendored Qt license does not match its reviewed content hash.")
         destination = Path("licenses/Qt") / relative
         copy_license(original, destination, included)
-        records.append({"path": destination.as_posix(), "sha256": digest, "source": source})
+        records.append({"path": destination.as_posix(), "source": source})
         paths.add(name)
     if not REQUIRED_QT_LICENSES <= paths:
         raise RuntimeError("The vendored Qt LGPL/GPL license texts are required.")
@@ -180,7 +176,6 @@ def prepare(source_revision: str, inno_version: str) -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     included = []
     copy_license(ROOT / "LICENSE", Path("LICENSE"), included)
-    info["project_license_sha256"] = hashlib.sha256((OUTPUT / "LICENSE").read_bytes()).hexdigest()
     (OUTPUT / "SOURCE.md").write_text(source_notice(info["source_revision"]), encoding="utf-8", newline="\n")
     included.append("SOURCE.md")
     for name in EXPECTED_PACKAGES:

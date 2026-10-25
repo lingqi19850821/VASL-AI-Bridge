@@ -75,8 +75,11 @@ try {
     & $IsccExe ('/DAppVersion=' + $appVersion) ('/DPayloadDir=' + $payloadRoot) ('/DOutputDir=' + $distRoot) packaging/VASL_AI_Bridge.iss
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
     $installer = Join-Path $distRoot ('VASL-AI-Bridge-Setup-' + $appVersion + '-x64.exe')
-    $checksum = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-    ($checksum + '  ' + [IO.Path]::GetFileName($installer)) | Set-Content -LiteralPath (Join-Path $distRoot 'SHA256SUMS.txt') -Encoding ascii
+    # The only permitted checksum operation is the final GitHub-built EXE.
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $checksum = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        ($checksum + '  ' + [IO.Path]::GetFileName($installer)) | Set-Content -LiteralPath (Join-Path $distRoot 'SHA256SUMS.txt') -Encoding ascii
+    }
     Write-Host ('Built ' + [IO.Path]::GetFileName($installer))
 }
 finally {
