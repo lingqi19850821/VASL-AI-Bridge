@@ -4,6 +4,20 @@ Exception details and external diagnostics remain in their original form.
 """
 
 TRANSLATIONS = {
+    "Notes contain an invalid record. Original records were not changed.": (
+        "Note 中包含无效记录，原始记录未被修改。", "Note 中包含無效紀錄，原始紀錄未被修改。"),
+    "A Note field exceeds the display limit of {limit} characters. Original records were not changed.": (
+        "Note 的某个字段超过 {limit} 字的显示上限，原始记录未被修改。",
+        "Note 的某個欄位超過 {limit} 字的顯示上限，原始紀錄未被修改。"),
+    "One reply exceeds the display limit of {limit} Notes. Original records were not changed.": (
+        "一条回复关联的 Note 超过 {limit} 条显示上限，原始记录未被修改。",
+        "一則回覆關聯的 Note 超過 {limit} 則顯示上限，原始紀錄未被修改。"),
+    "This conversation exceeds the display limit of {limit} Notes. Original records were not changed.": (
+        "当前对话的 Note 超过 {limit} 条显示上限，原始记录未被修改。",
+        "目前對話的 Note 超過 {limit} 則顯示上限，原始紀錄未被修改。"),
+    "A Note journal exceeds the display limit of {limit} MiB. Original records were not changed.": (
+        "Note 日志超过 {limit} MiB 的读取上限，原始记录未被修改。",
+        "Note 日誌超過 {limit} MiB 的讀取上限，原始紀錄未被修改。"),
     "A lesson scope must be general or scenario.": ("经验范围必须为通用或剧本专用。", "經驗範圍必須為通用或劇本專用。"),
     "A scenario lesson requires a scenario name.": ("剧本专用经验必须填写剧本名称。", "劇本專用經驗必須填寫劇本名稱。"),
     "A general lesson must have an empty scenario name.": ("通用经验的剧本名称必须为空。", "通用經驗的劇本名稱必須為空。"),

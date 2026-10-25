@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from .chat_session import ChatMessage
 from .preferences import AppPreferences, SEND_MODES
 from .i18n import get_language, tr
+from .note_limits import validate_note, validate_notes
 
 
 def preferred_font_family(base: QFont | None = None) -> str:
@@ -130,6 +131,7 @@ class NoteWidget(QWidget):
 
     def __init__(self, note: dict, number: int, parent: QWidget | None = None, *,
                  preferences: AppPreferences) -> None:
+        validate_note(note)
         super().__init__(parent)
         self.note = dict(note)
         self.number = number
@@ -161,6 +163,7 @@ class NoteWidget(QWidget):
         self.apply_preferences(preferences)
 
     def update_note(self, note: dict, number: int) -> None:
+        validate_note(note)
         if self.note != note or self.number != number:
             self.note, self.number = dict(note), number
             self._refresh_text()
@@ -285,6 +288,7 @@ class MessageBubble(QWidget):
 
     def set_notes(self, notes: list[dict]) -> None:
         notes = notes if self._message.role == "assistant" else []
+        validate_notes(notes)
         if notes == self._notes:
             return
         self._notes = [dict(note) for note in notes]

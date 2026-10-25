@@ -19,6 +19,10 @@ import threading
 from typing import Any
 
 from .chat_session import ChatSession, now_utc
+from .note_limits import (
+    MAX_NOTE_FIELD_CHARS, MAX_NOTE_JOURNAL_BYTES, NOTE_FIELDS, NoteValidationError,
+    check_note_count, validate_note,
+)
 
 
 MEMORY_TOOL_NAMES = frozenset({
@@ -146,12 +150,25 @@ class MemoryService:
         return target, fallback
 
     @staticmethod
-    def _read(path: Path, default: dict) -> dict:
+    def _read(path: Path, default: dict, *, max_bytes: int | None = None) -> dict:
         if not path.exists():
             return default
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, UnicodeError) as exc:
+            if max_bytes is None:
+                text = path.read_text(encoding="utf-8")
+            else:
+                # Bound the read itself, before decoding or JSON allocation.
+                with path.open("rb") as source:
+                    raw = source.read(max_bytes + 1)
+                if len(raw) > max_bytes:
+                    raise GameMemoryError(
+                        "A Note journal exceeds the display limit of {limit} MiB. Original records were not changed."
+                        .format(limit=max_bytes // (1024 * 1024)))
+                text = raw.decode("utf-8")
+            data = json.loads(text)
+        except GameMemoryError:
+            raise
+        except (OSError, ValueError, UnicodeError, RecursionError) as exc:
             raise GameMemoryError("A local memory record cannot be read; it was not replaced.") from exc
         if (not isinstance(data, dict) or type(data.get("schema_version")) is not int
                 or data.get("schema_version") != _SCHEMA):
@@ -177,13 +194,14 @@ class MemoryService:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
 
-    def _journal(self, session: ChatSession, context: dict | None) -> tuple[dict, Path, Path]:
+    def _journal(self, session: ChatSession, context: dict | None, *,
+                 max_bytes: int | None = None) -> tuple[dict, Path, Path]:
         target, fallback = self._paths(session, context)
         empty = {"schema_version": _SCHEMA, "session_id": session.session_id, "entries": []}
-        data = self._read(target, empty)
+        data = self._read(target, empty, max_bytes=max_bytes)
         self._validate_journal(data, session.session_id)
         if target != fallback and fallback.exists():
-            previous = self._read(fallback, empty)
+            previous = self._read(fallback, empty, max_bytes=max_bytes)
             self._validate_journal(previous, session.session_id)
             existing = {item.get("entry_id") for item in data["entries"]}
             data["entries"].extend(item for item in previous["entries"] if item.get("entry_id") not in existing)
@@ -253,19 +271,27 @@ class MemoryService:
         This is a UI reader, not a model tool or a new recording contract.
         """
         with self._lock:
-            journal, _, _ = self._journal(session, context)
+            journal, _, _ = self._journal(session, context, max_bytes=MAX_NOTE_JOURNAL_BYTES)
             visible = {message.message_id for message in session.messages}
             replies = {message.message_id for message in session.messages if message.role == "assistant"}
             result: dict[str, list[dict]] = {}
+            count = 0
             for entry in journal["entries"]:
                 reply = entry["visibility_message_id"]
                 if (entry["kind"] != "intent" or reply not in replies
                         or any(source not in visible for source in entry["source_message_ids"])):
                     continue
-                fields = {name: entry.get(name, "") for name in ("assumptions", "goal", "expected_result")}
-                if any(not isinstance(value, str) for value in fields.values()):
-                    raise GameMemoryError("The tactical journal contains invalid records; it was not replaced.")
-                result.setdefault(reply, []).append({"entry_id": entry["entry_id"], **fields})
+                # Check both budgets before accumulating any additional Note.
+                try:
+                    check_note_count(count + 1)
+                    check_note_count(len(result.get(reply, [])) + 1, per_message=True)
+                    note = {"entry_id": entry["entry_id"],
+                            **{name: entry.get(name, "") for name in NOTE_FIELDS}}
+                    validate_note(note)
+                except NoteValidationError as exc:
+                    raise GameMemoryError(str(exc)) from exc
+                result.setdefault(reply, []).append(note)
+                count += 1
             return result
 
     def pending_message_ids(self, session: ChatSession, context: dict | None = None) -> list[str]:
@@ -384,7 +410,8 @@ class MemoryService:
             sources = self._sources(session, item.get("source_message_ids", [trusted["anchor_message_id"]]), context=context)
             if not sources:
                 raise GameMemoryError("An intent needs an original source message.")
-            payload = {field: _text(item.get(field, ""), field, 2000, required=field in {"action", "goal"})
+            payload = {field: _text(item.get(field, ""), field, MAX_NOTE_FIELD_CHARS,
+                                    required=field in {"action", "goal"})
                        for field in ("action", "goal", "assumptions", "expected_result", "change_conditions")}
             previous = item.get("previous_entry_id", "")
             if previous:
