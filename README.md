@@ -8,7 +8,7 @@
 
 ** The Windows SmartScreen “unrecognised app” warning is a reputation warning for a downloaded file, not a malware detection result. See the shared link below for the VirusTotal scan report for the installer.
 
-[v1.0.0 — VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/b362dc51091668a7d7d20cb3c98a9dc0f730f449a96688fbe708e618980a4912)
+[v1.1.0 — VirusTotal scan report / 病毒扫描报告 / 病毒掃描報告](https://www.virustotal.com/gui/file/fcc84a2d4c3630b0568c5e4d88212b2ca6dc4de7a345f90415c3250be152cd53)
 
 ---
 
