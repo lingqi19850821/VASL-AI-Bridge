@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from math import ceil
+from time import perf_counter
 from typing import Callable
 
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPixmap, QTextDocument, QTextOption
 from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
+    QApplication, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
     QPushButton, QSizePolicy, QToolButton, QVBoxLayout, QWidget,
 )
 
@@ -165,26 +166,79 @@ class ChatContent(QWidget):
 
     def _flush_fits(self) -> None:
         self._fitting = True
-        pending = list(self._pending_fits.values())
-        self._pending_fits.clear()
+        # Keep unprocessed rows pending while returning to the GUI event loop
+        # between short batches. Every row still receives its complete fit.
+        pending = list(self._pending_fits)
+        deadline = perf_counter() + .008
         layout = self.layout()
         enabled = layout is not None and layout.isEnabled()
         if enabled:
             layout.setEnabled(False)
         try:
-            for bubble in pending:
+            for identifier in pending:
+                bubble = self._pending_fits.pop(identifier, None)
+                if bubble is None:
+                    continue
                 bubble._fit_content()
+                if perf_counter() >= deadline:
+                    break
         finally:
-            if enabled:
-                layout.setEnabled(True)
-                layout.invalidate()
-                layout.activate()
-                self.updateGeometry()
-            self._fitting = False
-        if not self._pending_fits and not self._fit_timer.isActive():
-            # Give the scroll area its queued geometry update before notifying
-            # consumers. A subsequent width fit cancels this notification.
-            self._settled_timer.start(0)
+            try:
+                if enabled:
+                    layout.setEnabled(True)
+                    layout.invalidate()
+                    layout.activate()
+                    self.updateGeometry()
+            finally:
+                self._fitting = False
+                if self._pending_fits:
+                    self._fit_timer.start(1)
+                elif not self._fit_timer.isActive():
+                    # Give the scroll area its queued geometry update before
+                    # notifying consumers. A new fit cancels this notification.
+                    self._settled_timer.start(0)
+
+
+class _TextHeightMeasurer:
+    """One application-owned temporary document, empty between measurements."""
+
+    def __init__(self, application: QApplication) -> None:
+        self.document = QTextDocument(application)
+        self.document.setDocumentMargin(0)
+        self.document.setUndoRedoEnabled(False)
+        self.busy = False
+
+    @classmethod
+    def for_application(cls) -> _TextHeightMeasurer:
+        application = QApplication.instance()
+        measurer = getattr(application, "_text_height_measurer", None)
+        if measurer is None:
+            measurer = cls(application)
+            application._text_height_measurer = measurer
+        return measurer
+
+    def measure(self, text: str, font: QFont, alignment: Qt.AlignmentFlag, width: int) -> int:
+        self.busy = True
+        document = self.document
+        try:
+            # Populate and lay out once. No label or text is retained here.
+            document.setLayoutEnabled(False)
+            document.setDefaultFont(font)
+            option = QTextOption()
+            option.setAlignment(alignment)
+            option.setWrapMode(QTextOption.WrapMode.WordWrap)
+            document.setDefaultTextOption(option)
+            document.setTextWidth(width)
+            document.setPlainText(text)
+            document.setLayoutEnabled(True)
+            return ceil(document.size().height())
+        finally:
+            try:
+                document.setLayoutEnabled(False)
+                document.clear()
+                document.setLayoutEnabled(True)
+            finally:
+                self.busy = False
 
 
 class _MeasuredTextLabel(QLabel):
@@ -212,6 +266,15 @@ class _MeasuredTextLabel(QLabel):
         super().setWordWrap(enabled)
         self._manual_height()
 
+    def setAlignment(self, alignment: Qt.AlignmentFlag) -> None:
+        changed = alignment != self.alignment()
+        if changed:
+            self._measurement_dirty = True
+        super().setAlignment(alignment)
+        self._manual_height()
+        if changed:
+            self.metrics_changed.emit()
+
     def heightForWidth(self, width: int) -> int:
         selectable = self.textInteractionFlags() & (
             Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
@@ -220,24 +283,19 @@ class _MeasuredTextLabel(QLabel):
                 or width <= 0 or self.margin() or self.frameWidth() or self.indent() > 0
                 or any((margins.left(), margins.top(), margins.right(), margins.bottom()))):
             return super().heightForWidth(width)
-        # Selectable QLabel temporarily reflows its display document to measure
-        # a width, then reflows it back. Keep one separate measurement document
-        # at the latest width; the QLabel still owns display and text selection.
-        document = getattr(self, "_measurement_document", None)
-        if document is None:
-            document = self._measurement_document = QTextDocument(self)
-            document.setDocumentMargin(0)
-            self._measurement_dirty = True
-        if self._measurement_dirty:
-            document.setDefaultFont(self.font())
-            option = document.defaultTextOption()
-            option.setAlignment(self.alignment())
-            option.setWrapMode(QTextOption.WrapMode.WordWrap)
-            document.setDefaultTextOption(option)
-            document.setPlainText(self.text())
-            self._measurement_dirty = False
-        document.setTextWidth(max(width, self.minimumWidth()))
-        return max(self.minimumHeight(), ceil(document.size().height()))
+        effective_width = max(width, self.minimumWidth())
+        key = (effective_width, self.alignment(), self.layoutDirection())
+        if (not getattr(self, "_measurement_dirty", True)
+                and getattr(self, "_height_cache_key", None) == key):
+            return max(self.minimumHeight(), self._height_cache)
+        measurer = _TextHeightMeasurer.for_application()
+        if measurer.busy:
+            return super().heightForWidth(width)
+        height = measurer.measure(self.text(), self.font(), self.alignment(), effective_width)
+        # Keep only numeric geometry, never a document or a second text copy.
+        self._height_cache_key, self._height_cache = key, height
+        self._measurement_dirty = False
+        return max(self.minimumHeight(), height)
 
     def sizeHint(self):
         size = super().sizeHint()
