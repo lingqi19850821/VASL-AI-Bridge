@@ -33,6 +33,7 @@ DEFAULT_MODEL = "gpt-6.1-sol"
 MAX_PROTOCOL_CHARS = 40 * 1024 * 1024
 MAX_TOOL_TEXT_CHARS = 64 * 1024
 MAX_IMAGE_BYTES = 24 * 1024 * 1024
+MAX_SCREENSHOTS_PER_MESSAGE = 8
 
 ASL_INSTRUCTIONS = r"""You are the player's conversational ASL opponent and companion.
 Decide your side's actions; the human operates VASL/VASSAL, moves counters, rolls
@@ -248,6 +249,26 @@ class BridgeError(RuntimeError):
         self.error_info = error_info
 
 
+class RequestSizeError(BridgeError):
+    """The serialized local packet is too large; no packet was written."""
+
+    def __init__(self, method: str | None = None) -> None:
+        super().__init__("The message and attachments exceed the local request limit.")
+        self.method = method
+
+
+def encoded_image_inputs_chars(byte_sizes: Sequence[int]) -> int:
+    """Count an image-only input list without allocating Base64 image strings."""
+    overhead = len(json.dumps({"type": "image", "url": "data:image/png;base64,"},
+                             separators=(",", ":")))
+    total = 2  # The input list brackets.
+    for index, size in enumerate(byte_sizes):
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise ValueError("Image byte sizes must be nonnegative integers.")
+        total += overhead + 4 * ((size + 2) // 3) + bool(index)
+    return total
+
+
 def find_codex_executable() -> str | None:
     """Find an existing runtime; never download or install one implicitly."""
     explicit = os.environ.get("ASL_AI_CODEX_PATH")
@@ -282,7 +303,7 @@ def _image_url(value: str) -> str:
 def _inputs(text: str, images: Sequence[str]) -> list[dict]:
     if not isinstance(text, str):
         raise BridgeError("The message must be text.")
-    if len(images) > 8:
+    if len(images) > MAX_SCREENSHOTS_PER_MESSAGE:
         raise BridgeError("Attach at most eight screenshots in one message.")
     result = [{"type": "text", "text": text}] if text else []
     result.extend({"type": "image", "url": _image_url(image)} for image in images)
@@ -408,7 +429,7 @@ class CodexBridge:
             self._tool_worker.start()
             try:
                 result = self._rpc("initialize", {
-                    "clientInfo": {"name": "vasl_ai_bridge", "title": APP_NAME, "version": "1.1.0"},
+                   "clientInfo": {"name": "vasl_ai_bridge", "title": APP_NAME, "version": "1.1.1"},
                     "capabilities": {"experimentalApi": True, "explicitGatewayOauth": True},
                 })
                 self._send({"method": "initialized", "params": {}})
@@ -420,7 +441,7 @@ class CodexBridge:
     def _send(self, message: dict) -> None:
         payload = json.dumps(message, ensure_ascii=False, separators=(",", ":"))
         if len(payload) > MAX_PROTOCOL_CHARS:
-            raise BridgeError("The message and attachments exceed the local request limit.")
+            raise RequestSizeError(message.get("method"))
         with self._write_lock:
             if not self.running or self._process is None or self._process.stdin is None:
                 raise BridgeError("The Codex runtime is not connected.")

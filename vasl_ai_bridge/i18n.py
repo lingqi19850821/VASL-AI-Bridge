@@ -251,6 +251,11 @@ def localize_widget_tree(widget: QWidget) -> None:
 def _error_templates() -> tuple[tuple[re.Pattern[str], str], ...]:
     templates = []
     sources = dict.fromkeys((*ERROR_TEMPLATES, *(source for source in catalog() if "{" in source)))
+    # Structured wrappers must match before the unstructured diagnostic fallback.
+    diagnostic_fallback = "AI request failed. {diagnostic}"
+    if diagnostic_fallback in sources:
+        sources.pop(diagnostic_fallback)
+        sources[diagnostic_fallback] = None
     for source in sources:
         fragments = []
         fields = []

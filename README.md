@@ -143,6 +143,10 @@ Under **Board window**, select the VASL window containing your board. Click **Re
 
 Click **Capture and select...**. Drag around the area you want to show, then click **Use selection**, or choose **Keep full image**. Check the image attached to your draft. It stays local until you click **Send**.
 
+You can attach up to **8 screenshots per message**. When you add the eighth, the application reminds you that the limit has been reached. Remove one before adding another.
+
+The complete encoded request also has a local limit of **40 × 1024 × 1024 characters**. Base64 encoding increases screenshot size by about one third: PNG files must total less than roughly **30 MiB**, with additional room for text and request information. Image size is checked when adding a screenshot; the complete request is checked before sending. If it exceeds the limit, a warning explains how to reduce it and your draft and existing attachments remain available. Remove a screenshot, select a smaller area, or shorten the text before trying again. Submitted content stays in the draft until the request is accepted; edits made while waiting are preserved.
+
 [![Select screenshot area dialog with a rectangle around the VASL board and Use selection and Keep full image buttons](screenshots/screenshot.png)](screenshots/screenshot.png)
 
 <a name="en-5-start-the-conversation"></a>
@@ -490,6 +494,10 @@ AI 负责决定并说明自己一方的行动。你负责操作 VASL：移动棋
 
 点击**截图并选择区域...（Capture and select...）**。拖动以框选希望展示的区域，再点击**使用所选区域（Use selection）**，也可以选择**保留完整图像（Keep full image）**。检查附加到草稿中的图像。在点击**发送（Send）**前，它会一直留在本机。
 
+每条消息最多添加 **8张截图**。添加第8张后，应用会提示已达到上限；如需添加另一张，请先移除一张。
+
+完整请求编码后还受本地 **40 × 1024 × 1024个字符**的限制。Base64编码会使截图体积增加约三分之一：PNG文件合计应略低于 **30 MiB**，并为文字和请求信息留出空间。添加截图时检查图片大小，发送前再检查完整请求。超限时会提示如何减少内容，草稿和已有截图仍会保留。请减少截图、缩小截图区域或缩短文字后重试。请求被接受后才会清理已提交的草稿内容，等待期间的新编辑会保留。
+
 [![选择截图区域对话框，矩形框圈出 VASL 棋盘，并显示使用所选区域和保留完整图像按钮](screenshots/screenshot.png)](screenshots/screenshot.png)
 
 #### 5. 开始对话
@@ -828,6 +836,10 @@ AI 負責決定並說明自己一方的行動。你負責操作 VASL：移動棋
 在**棋盤視窗（Board window）**下，選擇包含棋盤的 VASL 視窗。若未列出，請按**重新整理視窗（Refresh windows）**。
 
 按**擷取並選取範圍...（Capture and select...）**。拖曳選取要顯示的範圍，再按**使用選取區域（Use selection）**，或選擇**保留完整影像（Keep full image）**。檢查附加至草稿的影像；在你按**傳送（Send）**前，它會留在本機。
+
+每則訊息最多加入 **8張截圖**。加入第8張後，應用程式會提示已達上限；若要加入另一張，請先移除一張。
+
+完整要求編碼後另有本機 **40 × 1024 × 1024個字元**的限制。Base64編碼會使截圖大小增加約三分之一：PNG檔案合計應略低於 **30 MiB**，並為文字與要求資訊保留空間。加入截圖時檢查圖片大小，傳送前再檢查完整要求。超限時會提示如何減少內容，草稿與現有截圖仍會保留。請減少截圖、縮小擷取範圍或縮短文字後重試。要求被接受後才會清理已提交的草稿內容，等待期間的新編輯會保留。
 
 [![選擇截圖區域對話方塊，以矩形框選 VASL 棋盤，並提供使用選取區域與保留完整影像按鈕](screenshots/screenshot.png)](screenshots/screenshot.png)
 

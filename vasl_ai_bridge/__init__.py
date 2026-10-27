@@ -1,4 +1,4 @@
 """VASL AI Bridge: a local desktop companion for human-mediated ASL play."""
 
 APP_NAME = "VASL AI Bridge"
-__version__ = "1.1.0"
+__version__ = "1.1.1"

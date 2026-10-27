@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from math import ceil
 from typing import Callable
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPixmap
+from PySide6.QtCore import QEvent, Qt, QTimer, Signal
+from PySide6.QtGui import QFont, QFontDatabase, QIcon, QPixmap, QTextDocument, QTextOption
 from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
     QPushButton, QSizePolicy, QToolButton, QVBoxLayout, QWidget,
@@ -123,6 +124,137 @@ class NoteDisclosureDialog(QDialog):
         self.resize(490, 200)
 
 
+class ChatContent(QWidget):
+    """Coalesce message sizing and apply the conversation layout once per batch."""
+
+    layout_settled = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._pending_fits: dict[int, MessageBubble] = {}
+        self._fitting = False
+        self._fit_timer = QTimer(self)
+        self._fit_timer.setSingleShot(True)
+        self._fit_timer.timeout.connect(self._flush_fits)
+        self._settled_timer = QTimer(self)
+        self._settled_timer.setSingleShot(True)
+        self._settled_timer.timeout.connect(self._notify_layout_settled)
+
+    @property
+    def has_pending_fits(self) -> bool:
+        return bool(self._pending_fits or self._fitting or self._fit_timer.isActive()
+                    or self._settled_timer.isActive())
+
+    def _notify_layout_settled(self) -> None:
+        if not self.has_pending_fits:
+            self.layout_settled.emit()
+
+    def _queue_fit(self, bubble: MessageBubble, *, immediate: bool) -> None:
+        self._settled_timer.stop()
+        identifier = id(bubble)
+        self._pending_fits[identifier] = bubble
+        if not getattr(bubble, "_batch_cleanup_connected", False):
+            bubble.destroyed.connect(lambda _=None, key=identifier: self._pending_fits.pop(key, None))
+            bubble._batch_cleanup_connected = True
+        if immediate:
+            self._fit_timer.start(0)
+        elif not self._fit_timer.isActive():
+            # A real timer also runs in the Windows native resize loop, and a
+            # burst of width changes needs only the latest conversation width.
+            self._fit_timer.start(16)
+
+    def _flush_fits(self) -> None:
+        self._fitting = True
+        pending = list(self._pending_fits.values())
+        self._pending_fits.clear()
+        layout = self.layout()
+        enabled = layout is not None and layout.isEnabled()
+        if enabled:
+            layout.setEnabled(False)
+        try:
+            for bubble in pending:
+                bubble._fit_content()
+        finally:
+            if enabled:
+                layout.setEnabled(True)
+                layout.invalidate()
+                layout.activate()
+                self.updateGeometry()
+            self._fitting = False
+        if not self._pending_fits and not self._fit_timer.isActive():
+            # Give the scroll area its queued geometry update before notifying
+            # consumers. A subsequent width fit cancels this notification.
+            self._settled_timer.start(0)
+
+
+class _MeasuredTextLabel(QLabel):
+    """Wrapped text whose containing message explicitly supplies its height."""
+
+    metrics_changed = Signal()
+
+    def _manual_height(self) -> None:
+        # QLabel re-enables height-for-width in its text/font/style updates.
+        # Let the containing bubble measure once, rather than making every
+        # ancestor layout recursively measure the selectable text again.
+        policy = self.sizePolicy()
+        if policy.hasHeightForWidth():
+            policy.setHeightForWidth(False)
+            self.setSizePolicy(policy)
+
+    def setText(self, text: str) -> None:
+        self._measurement_dirty = True
+        super().setText(text)
+        self._manual_height()
+        self.metrics_changed.emit()
+
+    def setWordWrap(self, enabled: bool) -> None:
+        self._measurement_dirty = True
+        super().setWordWrap(enabled)
+        self._manual_height()
+
+    def heightForWidth(self, width: int) -> int:
+        selectable = self.textInteractionFlags() & (
+            Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        margins = self.contentsMargins()
+        if (not selectable or self.textFormat() != Qt.TextFormat.PlainText or not self.wordWrap()
+                or width <= 0 or self.margin() or self.frameWidth() or self.indent() > 0
+                or any((margins.left(), margins.top(), margins.right(), margins.bottom()))):
+            return super().heightForWidth(width)
+        # Selectable QLabel temporarily reflows its display document to measure
+        # a width, then reflows it back. Keep one separate measurement document
+        # at the latest width; the QLabel still owns display and text selection.
+        document = getattr(self, "_measurement_document", None)
+        if document is None:
+            document = self._measurement_document = QTextDocument(self)
+            document.setDocumentMargin(0)
+            self._measurement_dirty = True
+        if self._measurement_dirty:
+            document.setDefaultFont(self.font())
+            option = document.defaultTextOption()
+            option.setAlignment(self.alignment())
+            option.setWrapMode(QTextOption.WrapMode.WordWrap)
+            document.setDefaultTextOption(option)
+            document.setPlainText(self.text())
+            self._measurement_dirty = False
+        document.setTextWidth(max(width, self.minimumWidth()))
+        return max(self.minimumHeight(), ceil(document.size().height()))
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        if self.minimumHeight() > 0:
+            # QLabel's default wrapped size hint guesses a text width. The
+            # bubble has measured its actual width, including short replies.
+            size.setHeight(self.minimumHeight())
+        return size
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        self._manual_height()
+        if event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange, QEvent.Type.LayoutDirectionChange):
+            self._measurement_dirty = True
+            self.metrics_changed.emit()
+
+
 class NoteWidget(QWidget):
     """Persistent, plain-text intent fields, concealed while collapsed."""
 
@@ -150,12 +282,13 @@ class NoteWidget(QWidget):
         self.headings: dict[str, QLabel] = {}
         self.values: dict[str, QLabel] = {}
         for field, _ in self.FIELDS:
-            heading, value = QLabel(), QLabel()
+            heading, value = _MeasuredTextLabel(), _MeasuredTextLabel()
             for label in (heading, value):
                 label.setTextFormat(Qt.TextFormat.PlainText)
                 label.setWordWrap(True)
                 label.setMinimumWidth(0)
                 self.details_layout.addWidget(label)
+                label.metrics_changed.connect(self._invalidate_height)
             value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             self.headings[field], self.values[field] = heading, value
         layout.addWidget(self.details)
@@ -170,6 +303,7 @@ class NoteWidget(QWidget):
             self.size_changed.emit()
 
     def _refresh_text(self) -> None:
+        self._fitted_width = None
         expanded = self.toggle.isChecked()
         self.toggle.setText(tr("Note {number}", number=self.number))
         self.toggle.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
@@ -184,6 +318,10 @@ class NoteWidget(QWidget):
         self._refresh_text()
         self.size_changed.emit()
 
+    def _invalidate_height(self) -> None:
+        self._fitted_width = None
+        self.size_changed.emit()
+
     def apply_preferences(self, preferences: AppPreferences) -> None:
         self.toggle.setFont(ui_font(preferences, self.font()))
         heading_font = ui_font(preferences, self.font())
@@ -195,6 +333,9 @@ class NoteWidget(QWidget):
         self.size_changed.emit()
 
     def fit_height(self, width: int) -> int:
+        if self._fitted_width == width:
+            return self.minimumHeight()
+        self._fitted_width = width
         height = self.toggle.sizeHint().height()
         if self.toggle.isChecked():
             margins = self.details_layout.contentsMargins()
@@ -233,6 +374,8 @@ class MessageBubble(QWidget):
         self._preferences = preferences or AppPreferences()
         self._display_text = display_text
         self._fit_pending = False
+        self._fit_dirty = True
+        self._fitted_text_width = None
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.row_layout = QHBoxLayout(self)
         self.row_layout.setContentsMargins(0, 3, 0, 7)
@@ -246,12 +389,13 @@ class MessageBubble(QWidget):
         self.heading.setProperty("i18n_skip", True)
         self.heading.setTextFormat(Qt.TextFormat.PlainText)
         layout.addWidget(self.heading)
-        self.text = QLabel()
+        self.text = _MeasuredTextLabel()
         self.text.setProperty("i18n_skip", True)
         self.text.setTextFormat(Qt.TextFormat.PlainText)
         self.text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.text.setWordWrap(True)
         self.text.setMinimumWidth(0)
+        self.text.metrics_changed.connect(self._schedule_fit)
         layout.addWidget(self.text)
         self.attachment_buttons = []
         for image in message.attachments:
@@ -356,8 +500,13 @@ class MessageBubble(QWidget):
         if self.body.maximumWidth() != maximum:
             self.body.setMaximumWidth(maximum)
 
-    def _schedule_fit(self) -> None:
-        if not self._fit_pending:
+    def _schedule_fit(self, *, content_changed: bool = True) -> None:
+        self._fit_dirty = self._fit_dirty or content_changed
+        parent = self.parentWidget()
+        if isinstance(parent, ChatContent):
+            self._fit_pending = True
+            parent._queue_fit(self, immediate=content_changed)
+        elif not self._fit_pending:
             self._fit_pending = True
             QTimer.singleShot(0, self._fit_content)
 
@@ -370,6 +519,10 @@ class MessageBubble(QWidget):
         self.row_layout.activate()
         margins = self.body.layout().contentsMargins()
         text_width = max(1, self.body.contentsRect().width() - margins.left() - margins.right())
+        if not self._fit_dirty and self._fitted_text_width == text_width:
+            return
+        self._fit_dirty = False
+        self._fitted_text_width = text_width
         # QLabel's heightForWidth is bounded by its explicit minimum height.
         # Clear the previous narrow layout before measuring a wider one.
         self.text.setMinimumHeight(0)
@@ -389,16 +542,20 @@ class MessageBubble(QWidget):
             self.notes_container.setMinimumHeight(0)
         content_height = sum(heights) + self.body.layout().spacing() * (len(heights) - 1)
         content_height += margins.top() + margins.bottom() + self.body.frameWidth() * 2
-        self.body.setMinimumHeight(content_height)
+        if self.body.minimumHeight() != content_height:
+            self.body.setMinimumHeight(content_height)
         row_margins = self.row_layout.contentsMargins()
-        self.setMinimumHeight(content_height + row_margins.top() + row_margins.bottom())
-        self.updateGeometry()
+        row_height = content_height + row_margins.top() + row_margins.bottom()
+        if self.minimumHeight() != row_height:
+            self.setMinimumHeight(row_height)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self._fit_width()
-        self._schedule_fit()
+        if event.size().width() != event.oldSize().width():
+            if not isinstance(self.parentWidget(), ChatContent):
+                self._fit_width()
+            self._schedule_fit(content_changed=False)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        self._schedule_fit()
+        self._schedule_fit(content_changed=False)

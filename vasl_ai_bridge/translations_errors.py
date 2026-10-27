@@ -36,6 +36,7 @@ TRANSLATIONS = {
     "The connection was interrupted. Check your internet connection and try again.": ("连接已中断。请检查网络连接后重试。", "連線已中斷。請檢查網路連線後重試。"),
     "The AI service is temporarily unavailable. Please try again later.": ("AI 服务暂时不可用。请稍后重试。", "AI 服務暫時無法使用。請稍後重試。"),
     "AI request failed.": ("AI 请求失败。", "AI 要求失敗。"),
+    "AI request failed. {diagnostic}": ("AI 请求失败。 {diagnostic}", "AI 要求失敗。 {diagnostic}"),
     "Choose a supported local speech backend in Settings > Voice.": ("请在设置 > 语音中选择支持的本地语音引擎。", "請在設定 > 語音中選擇支援的本機語音引擎。"),
     "Unsupported speech language identifier.": ("不支持此语音语言标识。", "不支援此語音語言識別碼。"),
     "No local speech engine and model were found. Choose them in Settings > Voice.": ("未找到本地语音引擎和模型。请在设置 > 语音中选择。", "找不到本機語音引擎與模型。請在設定 > 語音中選擇。"),
@@ -272,6 +273,43 @@ TRANSLATIONS = {
     "Microphone could not start: {diagnostic}. {detail}": ("麦克风无法启动：{diagnostic}。{detail}", "麥克風無法啟動：{diagnostic}。{detail}"),
     "Microphone stopped: {diagnostic}. {detail}": ("麦克风已停止：{diagnostic}。{detail}", "麥克風已停止：{diagnostic}。{detail}"),
 }
+
+_RUNTIME_TRANSLATIONS = {
+    "Codex runtime was not found. Install the official Codex runtime or set ASL_AI_CODEX_PATH to its executable.": (
+        "未找到 Codex 运行时。请安装官方 Codex 运行时，或将 ASL_AI_CODEX_PATH 设为其可执行文件路径。",
+        "找不到 Codex 執行環境。請安裝官方 Codex 執行環境，或將 ASL_AI_CODEX_PATH 設為其執行檔路徑。"),
+    "The Codex runtime could not start. Check the configured executable path.": (
+        "Codex 运行时无法启动。请检查配置的可执行文件路径。",
+        "Codex 執行環境無法啟動。請檢查設定的執行檔路徑。"),
+    "The Codex runtime is not connected.": (
+        "Codex 运行时未连接。", "Codex 執行環境尚未連線。"),
+    "The local Codex connection closed.": (
+        "本地 Codex 连接已关闭。", "本機 Codex 連線已關閉。"),
+    "The local runtime did not answer {method} in time. Check the connection before retrying.": (
+        "本地运行时未及时响应 {method}。请检查连接后再重试。",
+        "本機執行環境未及時回應 {method}。請檢查連線後再重試。"),
+    "Runtime request failed.": (
+        "本地运行时请求失败。", "本機執行環境要求失敗。"),
+    "The local runtime returned an unsupported response.": (
+        "本地运行时返回了不支持的响应。", "本機執行環境傳回了不支援的回應。"),
+    "The local Codex runtime returned an invalid message or closed its connection.": (
+        "本地 Codex 运行时返回了无效消息，或连接已关闭。",
+        "本機 Codex 執行環境傳回了無效訊息，或連線已關閉。"),
+    "The model connection closed. Send again to reconnect.": (
+        "模型连接已关闭。请再次发送消息以重新连接。",
+        "模型連線已關閉。請再次傳送訊息以重新連線。"),
+    "The message and attachments exceed the local request limit.": (
+        "消息和附件超过了本地请求限制。", "訊息與附件超過了本機要求限制。"),
+}
+
+# The classifier may wrap these known application diagnostics as unknown errors.
+# Translate those trusted combinations without parsing arbitrary server details.
+for _source, _pair in _RUNTIME_TRANSLATIONS.items():
+    TRANSLATIONS[_source] = _pair
+    TRANSLATIONS["AI request failed. " + _source] = (
+        TRANSLATIONS["AI request failed."][0] + " " + _pair[0],
+        TRANSLATIONS["AI request failed."][1] + " " + _pair[1],
+    )
 
 # Only named templates owned by the application are eligible for error parsing.
 ERROR_TEMPLATES = tuple(source for source in TRANSLATIONS if "{" in source)

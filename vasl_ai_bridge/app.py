@@ -23,8 +23,11 @@ from . import APP_NAME
 from .capture import CaptureError, WindowSource, capture_window, capture_visible_window, list_windows
 from .chat_session import ChatMessage, ChatSession, new_id, now_utc
 from .chat_storage import ChatStore
-from .chat_widgets import ChatInput, MessageBubble, NoteDisclosureDialog, ui_font
-from .codex_bridge import CodexBridge
+from .chat_widgets import ChatContent, ChatInput, MessageBubble, NoteDisclosureDialog, ui_font
+from .codex_bridge import (
+    CodexBridge, MAX_PROTOCOL_CHARS, MAX_SCREENSHOTS_PER_MESSAGE,
+    RequestSizeError, encoded_image_inputs_chars,
+)
 from .game_tools import handle_game_tool
 from .game_folders import GameFolderStore
 from .game_memory import MEMORY_TOOL_NAMES, MemoryService
@@ -34,7 +37,7 @@ from .i18n import localize_error, localize_widget_tree, set_language, tr
 from .preferences import AppPreferences, load_preferences, save_preferences
 from .reference_library import ReferenceLibrary
 from .reference_formats import REFERENCE_FILE_FILTER, is_supported_reference, reference_capabilities
-from .request_errors import classify_request_failure
+from .request_errors import RequestFailure, classify_request_failure
 from .reasoning import (
     default_reasoning_effort, model_identifier, reasoning_effort_description,
     reasoning_effort_label, supported_reasoning_efforts,
@@ -48,6 +51,14 @@ from .voice import VoiceConfig, VoiceController, VoiceError
 
 
 LOGIN_TIMEOUT_SECONDS = 300
+ATTACHMENT_SIZE_NOTICE = (
+    "The screenshots exceed the message size limit. Remove a screenshot or select a smaller area. "
+    "Your draft and existing screenshots have been retained."
+)
+REQUEST_SIZE_NOTICE = (
+    "The message and screenshots exceed the size limit. Remove a screenshot, select a smaller area, "
+    "or shorten the text. Your draft and screenshots have been retained."
+)
 
 
 SAVE_REQUEST = """Please prepare a readable game save report in the language of the player's
@@ -124,6 +135,12 @@ class ImagePanel(QGroupBox):
         layout.addWidget(self.details)
         self.observation: Observation | None = None
         self._pixmap: QPixmap | None = None
+        self._fitted_size: tuple[int, int] | None = None
+        self._fit_timer = QTimer(self)
+        self._fit_timer.setSingleShot(True)
+        self._fit_timer.setInterval(16)
+        self._fit_timer.timeout.connect(self._fit)
+        self.image.installEventFilter(self)
 
     def inspect_image(self) -> QDialog | None:
         return inspect_observation(self, self.observation) if self.observation else None
@@ -132,7 +149,9 @@ class ImagePanel(QGroupBox):
         self.image.setToolTip(tr("Double-click to inspect the screenshot at its original size."))
         self.observation = observation
         if observation is None:
+            self._fit_timer.stop()
             self._pixmap = None
+            self._fitted_size = None
             self.image.clear()
             self.image.setText(tr("No screenshot yet"))
             self.details.setText(tr("Capture a window, then attach the screenshot to a message."))
@@ -140,19 +159,29 @@ class ImagePanel(QGroupBox):
         pixmap = QPixmap()
         if not pixmap.loadFromData(observation.png, "PNG"):
             raise ValueError("The screenshot could not be displayed.")
+        self._fit_timer.stop()
         self._pixmap = pixmap
+        self._fitted_size = None
         self._fit()
         self.details.setText(tr("Local preview\n{source} | {captured_at}",
                                 source=observation.source, captured_at=observation.captured_at))
 
     def _fit(self) -> None:
-        if self._pixmap:
-            self.image.setPixmap(self._pixmap.scaled(self.image.size(),
-                Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        if self._pixmap is None:
+            return
+        target = self._pixmap.size().scaled(self.image.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        fitted_size = (target.width(), target.height())
+        if target.isEmpty() or fitted_size == self._fitted_size:
+            return
+        self._fitted_size = fitted_size
+        self.image.setPixmap(self._pixmap.scaled(self.image.size(),
+            Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        self._fit()
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.image and event.type() == QEvent.Type.Resize and self._pixmap is not None:
+            if not self._fit_timer.isActive():
+                self._fit_timer.start()
+        return super().eventFilter(watched, event)
 
 
 class CommandWorker(QThread):
@@ -294,6 +323,10 @@ class MainWindow(QMainWindow):
         self._notes_enabled = False
         self._notes_by_message: dict[str, list[dict]] = {}
         self._notes_error = ""
+        self._chat_scroll_pending = False
+        self._chat_scroll_rendering = False
+        self._chat_scroll_adjusting = False
+        self._chat_scroll_user_away = False
         self._initial_geometry_applied = False
         self.setWindowTitle(APP_NAME)
         self.resize(1375, 970)
@@ -493,13 +526,21 @@ class MainWindow(QMainWindow):
         chat_layout.addWidget(self.notes_status)
         self.chat_scroll = QScrollArea()
         self.chat_scroll.setWidgetResizable(True)
-        self.chat_content = QWidget()
+        self.chat_content = ChatContent()
         self.chat_layout = QVBoxLayout(self.chat_content)
         self.chat_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.welcome = QLabel("Chat with AI here. You operate the board in VASL. Attach a screenshot whenever you want AI to see it.")
         self.welcome.setWordWrap(True)
         self.chat_layout.addWidget(self.welcome)
         self.chat_scroll.setWidget(self.chat_content)
+        chat_bar = self.chat_scroll.verticalScrollBar()
+        chat_bar.rangeChanged.connect(self._apply_chat_scroll)
+        chat_bar.valueChanged.connect(self._chat_scroll_value_changed)
+        chat_bar.actionTriggered.connect(self._chat_scroll_action)
+        chat_bar.sliderMoved.connect(self._chat_scroll_user_position)
+        chat_bar.sliderPressed.connect(self._chat_scroll_pressed)
+        chat_bar.sliderReleased.connect(self._chat_scroll_released)
+        self.chat_content.layout_settled.connect(self._apply_chat_scroll)
         chat_layout.addWidget(self.chat_scroll, 1)
         self.attachment_box = QWidget()
         self.attachment_layout = QHBoxLayout(self.attachment_box)
@@ -1228,14 +1269,28 @@ class MainWindow(QMainWindow):
 
     def attach_preview(self) -> None:
         if self.preview and all(image.observation_id != self.preview.observation_id for image in self.attachments):
+            if len(self.attachments) >= MAX_SCREENSHOTS_PER_MESSAGE:
+                self.notice("Attach at most eight screenshots in one message.", True)
+                return
+            image_sizes = [len(image.png) for image in self.attachments] + [len(self.preview.png)]
+            # The complete RPC also needs text, metadata and an outer envelope.
+            if encoded_image_inputs_chars(image_sizes) >= MAX_PROTOCOL_CHARS:
+                self.notice(ATTACHMENT_SIZE_NOTICE, True)
+                return
             self.attachments.append(self.preview)
             self._render_attachments()
-            self.notice("Screenshot attached. Send shares this exact image, even if the preview changes.")
+            if len(self.attachments) == MAX_SCREENSHOTS_PER_MESSAGE:
+                self.notice(f"{MAX_SCREENSHOTS_PER_MESSAGE} screenshots attached. This message has reached the limit.")
+            else:
+                self.notice("Screenshot attached. Send shares this exact image, even if the preview changes.")
             self.update_controls()
 
     def _remove_attachment(self, observation_id: str) -> None:
+        previous_count = len(self.attachments)
         self.attachments = [image for image in self.attachments if image.observation_id != observation_id]
         self._render_attachments()
+        if len(self.attachments) < previous_count:
+            self.notice("Screenshot removed.")
         self.update_controls()
 
     def _render_attachments(self) -> None:
@@ -1330,6 +1385,10 @@ class MainWindow(QMainWindow):
             return
         if not self._ensure_game_folder():
             return
+        submitted_draft = None if report or review else {
+            "text": self.message_edit.toPlainText(),
+            "image_ids": [image.observation_id for image in attachments],
+        }
         previous_messages = list(self.session.messages)
         user_message = self.session.add_message("user", text, attachments=attachments)
         application_ids = self.session.legacy_metadata.setdefault("asl_ai_application_message_ids", [])
@@ -1356,11 +1415,7 @@ class MainWindow(QMainWindow):
         self._report_ready = False
         # Corrections after a report retain the save workflow; the newest completed
         # assistant reply becomes the report only when the player explicitly saves.
-        if not report and not review:
-            self.message_edit.clear()
-            self.attachments.clear()
-            self._render_attachments()
-        self.render_session()
+        self.render_session(scroll_to_bottom=True)
         if not self._autosave():
             assistant.status = "failed"
             self._preparing, self._assistant_id = False, ""
@@ -1406,7 +1461,8 @@ class MainWindow(QMainWindow):
             turn_id = bridge.start_turn(prefix + connection + self._reference_context() + self._memory_prompt() + text,
                                         images=[image.data_url for image in attachments], effort=effort)
             return {"turn_id": turn_id, "thread_id": bridge.thread_id, "mode": mode, "model": model,
-                    "effort": effort, "selected_effort": selected_effort, "models": fetched_models}
+                    "effort": effort, "selected_effort": selected_effort, "models": fetched_models,
+                    "submitted_draft": submitted_draft}
         self._command(start, self._turn_started, self._turn_failed, preserve_error=True)
 
     def _turn_started(self, result: dict) -> None:
@@ -1415,6 +1471,13 @@ class MainWindow(QMainWindow):
                 self.bridge.close()
             self._turn_failed("AI request stopped while the application was closing.")
             return
+        submitted = result.get("submitted_draft")
+        if submitted is not None:
+            if self.message_edit.toPlainText() == submitted["text"]:
+                self.message_edit.clear()
+            identifiers = set(submitted["image_ids"])
+            self.attachments = [image for image in self.attachments if image.observation_id not in identifiers]
+            self._render_attachments()
         self._preparing = False
         self._active_turn = result["turn_id"]
         self._memory_context.update({"turn_id": result["turn_id"], "thread_id": result["thread_id"]})
@@ -1589,7 +1652,9 @@ class MainWindow(QMainWindow):
         self._refresh_memory_status()
 
     def _turn_failed(self, reason: object) -> None:
-        failure = classify_request_failure(reason)
+        failure = (RequestFailure("size", REQUEST_SIZE_NOTICE)
+                   if isinstance(reason, RequestSizeError) and reason.method == "turn/start"
+                   else classify_request_failure(reason))
         message = self.session.get_message(self._assistant_id)
         if message:
             message.status = "failed"
@@ -1609,22 +1674,28 @@ class MainWindow(QMainWindow):
         if self.commands:
             return
         turn_id = self._active_turn
+        draft_text = self.message_edit.toPlainText()
         def send():
             if self.bridge.turn_id != turn_id:
                 raise ValueError("AI has finished this response. Send your message again to start the next response.")
             return self.bridge.steer(self._reference_context() + text, images=[image.data_url for image in attachments])
         def accepted(_result):
             self.session.add_message("user", text, attachments=attachments)
-            if self.message_edit.toPlainText().strip() == text:
+            if self.message_edit.toPlainText() == draft_text:
                 self.message_edit.clear()
             identifiers = {image.observation_id for image in attachments}
             self.attachments = [image for image in self.attachments if image.observation_id not in identifiers]
             self._render_attachments()
-            self.render_session()
+            self.render_session(scroll_to_bottom=True)
             self._autosave()
             self.notice("Additional message sent to the current AI response.")
-        self._command(send, accepted, lambda reason: self.notice(
-            "Could not send during this response: " + reason + " Your draft is retained. Click Stop, then Send to continue.", True))
+        def failed(reason: object) -> None:
+            if isinstance(reason, RequestSizeError) and reason.method == "turn/steer":
+                self.notice(REQUEST_SIZE_NOTICE, True)
+            else:
+                self.notice("Could not send during this response: " + (str(reason) or "The operation failed.") +
+                            " Your draft is retained. Click Stop, then Send to continue.", True)
+        self._command(send, accepted, failed, preserve_error=True)
 
     def stop_request(self) -> None:
         if self._preparing:
@@ -1773,7 +1844,7 @@ class MainWindow(QMainWindow):
             self.attachments.clear()
             self.message_edit.clear()
             self._reset_chat()
-            self.render_session()
+            self.render_session(scroll_to_bottom=True)
             self._render_attachments()
             self._refresh_memory_status()
             self.notice("Game opened. Send a message and screenshot to recheck the board." + library_warning, bool(library_warning))
@@ -1992,6 +2063,8 @@ class MainWindow(QMainWindow):
     def _reset_chat(self) -> None:
         # A newly opened game/save point starts concealed, including reopening
         # the same game. Disclosure is a viewing choice, never saved game data.
+        self._chat_scroll_pending = False
+        self._chat_scroll_user_away = False
         self.notes_toggle.setChecked(False)
         self._notes_by_message = {}
         for widget in self._message_widgets.values():
@@ -2012,23 +2085,68 @@ class MainWindow(QMainWindow):
             return message.text[:-len(suffix)] + localize_error(suffix)
         return message.text
 
-    def render_session(self) -> None:
+    def _chat_scroll_user_position(self, value: int) -> None:
         bar = self.chat_scroll.verticalScrollBar()
-        at_bottom = bar.value() >= bar.maximum() - 30
-        self.welcome.setVisible(not self.session.messages)
-        for message in self.session.messages:
-            widget = self._message_widgets.get(message.message_id)
-            if widget is None:
-                widget = MessageBubble(message, self.chat_content, preferences=self.preferences,
-                                       inspect_callback=inspect_observation,
-                                        display_text=self._display_message)
-                self._message_widgets[message.message_id] = widget
-                self.chat_layout.addWidget(widget)
-            else:
-                widget.update_message(message)
-            widget.set_notes(self._notes_by_message.get(message.message_id, []))
-        if at_bottom:
-            QTimer.singleShot(0, lambda: bar.setValue(bar.maximum()))
+        # An explicit upward move cancels following even within the render
+        # path's near-bottom tolerance. Only the actual bottom resumes it.
+        self._chat_scroll_user_away = value < bar.maximum()
+        if self._chat_scroll_user_away:
+            self._chat_scroll_pending = False
+
+    def _chat_scroll_pressed(self) -> None:
+        self._chat_scroll_pending = False
+        self._chat_scroll_user_away = True
+
+    def _chat_scroll_released(self) -> None:
+        self._chat_scroll_user_position(self.chat_scroll.verticalScrollBar().value())
+
+    def _chat_scroll_action(self, _action: int) -> None:
+        self._chat_scroll_user_position(self.chat_scroll.verticalScrollBar().sliderPosition())
+
+    def _chat_scroll_value_changed(self, value: int) -> None:
+        # Range/layout updates can move the value before the new content settles.
+        # Real slider/wheel/key actions above cancel following even during a fit.
+        if (self._chat_scroll_adjusting or self._chat_scroll_rendering
+                or self.chat_content.has_pending_fits):
+            return
+        self._chat_scroll_user_position(value)
+
+    def _apply_chat_scroll(self, *_args) -> None:
+        if not self._chat_scroll_pending or self._chat_scroll_user_away:
+            return
+        bar = self.chat_scroll.verticalScrollBar()
+        self._chat_scroll_adjusting = True
+        try:
+            bar.setValue(bar.maximum())
+        finally:
+            self._chat_scroll_adjusting = False
+        if not _args and not self._chat_scroll_rendering and not self.chat_content.has_pending_fits:
+            self._chat_scroll_pending = False
+
+    def render_session(self, *, scroll_to_bottom: bool = False) -> None:
+        bar = self.chat_scroll.verticalScrollBar()
+        if scroll_to_bottom:
+            self._chat_scroll_user_away = False
+        if scroll_to_bottom or (not self._chat_scroll_user_away and bar.value() >= bar.maximum() - 30):
+            self._chat_scroll_pending = True
+        # Keep this render's intent until the measured rows and scroll range agree.
+        self._chat_scroll_rendering = True
+        try:
+            self.welcome.setVisible(not self.session.messages)
+            for message in self.session.messages:
+                widget = self._message_widgets.get(message.message_id)
+                if widget is None:
+                    widget = MessageBubble(message, self.chat_content, preferences=self.preferences,
+                                           inspect_callback=inspect_observation,
+                                            display_text=self._display_message)
+                    self._message_widgets[message.message_id] = widget
+                    self.chat_layout.addWidget(widget)
+                else:
+                    widget.update_message(message)
+                widget.set_notes(self._notes_by_message.get(message.message_id, []))
+        finally:
+            self._chat_scroll_rendering = False
+        self._apply_chat_scroll()
         names = "\n".join(reference.name for reference in self.session.references)
         self.reference_label.setText(tr("Selected for this game: {count}\n", count=len(self.session.references)) + (names or tr("No references selected")))
         self.session_label.setText(tr("Game {game_id} | {count} messages", game_id=self.session.session_id[:8], count=len(self.session.messages)))

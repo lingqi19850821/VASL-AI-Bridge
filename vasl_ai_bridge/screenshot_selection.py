@@ -170,9 +170,37 @@ class ScreenshotSelectionDialog(QDialog):
         layout.addWidget(self.details)
         layout.addWidget(self.canvas, 1)
         layout.addLayout(buttons)
-        screen = self.screen().availableGeometry()
-        self.resize(min(1100, int(screen.width() * .9)), min(800, int(screen.height() * .85)))
         localize_widget_tree(self)
+        self._initial_geometry_applied = False
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not self._initial_geometry_applied:
+            self._initial_geometry_applied = True
+            self._fit_initial_geometry()
+
+    def _fit_initial_geometry(self) -> None:
+        screen = self.screen()
+        if screen is None:
+            return
+        available = screen.availableGeometry()
+        if available.isEmpty():
+            return
+        # Qt uses logical coordinates for both the screen and window frame.
+        frame = self.frameGeometry()
+        border_width = max(0, frame.width() - self.width())
+        border_height = max(0, frame.height() - self.height())
+        max_width = max(1, available.width() - border_width)
+        max_height = max(1, available.height() - border_height)
+        self.setMinimumSize(min(self.minimumWidth(), max_width), min(self.minimumHeight(), max_height))
+        self.resize(max(1, int(available.width() * .9) - border_width),
+                    max(1, int(available.height() * .9) - border_height))
+        frame = self.frameGeometry()
+        x = available.left() + (available.width() - frame.width()) // 2
+        y = available.top() + (available.height() - frame.height()) // 2
+        x = max(available.left(), min(x, available.right() - frame.width() + 1))
+        y = max(available.top(), min(y, available.bottom() - frame.height() + 1))
+        self.move(x, y)
 
     def _selection_changed(self, box) -> None:
         self.use_button.setEnabled(box is not None)

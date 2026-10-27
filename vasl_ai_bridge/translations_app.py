@@ -102,6 +102,17 @@ TRANSLATIONS = {
     "Select a VASL window in {app_name} before using capture.": ("截图前，请先在 {app_name} 中选择 VASL 窗口。", "擷取前，請先在 {app_name} 中選擇 VASL 視窗。"),
     "Screenshot selection cancelled. No new attachment was added.": ("已取消截图选择。没有添加新附件。", "已取消截圖選取。沒有加入新附件。"),
     "Screenshot attached. Send shares this exact image, even if the preview changes.": ("截图已附加。点击“发送”会分享这张图片，不受之后预览变化影响。", "截圖已附加。按下「傳送」會分享這張圖片，不受之後預覽變化影響。"),
+    "{count} screenshots attached. This message has reached the limit.": (
+        "已添加{count}张截图，已达到每条消息的上限。", "已加入{count}張截圖，已達每則訊息的上限。"),
+    "Attach at most eight screenshots in one message.": (
+        "每条消息最多添加8张截图。", "每則訊息最多加入8張截圖。"),
+    "Screenshot removed.": ("截图已移除。", "截圖已移除。"),
+    "The screenshots exceed the message size limit. Remove a screenshot or select a smaller area. Your draft and existing screenshots have been retained.": (
+        "截图总大小超过消息大小限制。请移除一张截图或缩小截图区域。草稿和已有截图已保留。",
+        "截圖總大小超過訊息大小限制。請移除一張截圖或縮小擷取範圍。草稿與現有截圖已保留。"),
+    "The message and screenshots exceed the size limit. Remove a screenshot, select a smaller area, or shorten the text. Your draft and screenshots have been retained.": (
+        "本次消息及截图超过大小限制。请减少截图、缩小截图区域或缩短文字。草稿和截图已保留。",
+        "本次訊息與截圖超過大小限制。請減少截圖、縮小擷取範圍或縮短文字。草稿與截圖已保留。"),
     "Remove": ("移除", "移除"),
     "Recording locally. Click Stop recording when finished (maximum two minutes).": ("正在本机录音。结束后点击“停止录音”（最长两分钟）。", "正在本機錄音。結束後按「停止錄音」（最長兩分鐘）。"),
     "Voice input cancelled. Your draft and attachments are retained.": ("已取消语音输入。草稿和附件已保留。", "已取消語音輸入。草稿與附件已保留。"),
